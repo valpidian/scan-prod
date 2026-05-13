@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Rezultat AI | Scan Pret{% endblock %}
+
+{% block content %}
+
+{% set p = result.source_product %}
+{% set ai = result.ai_result %}
+
+<!-- Produs sursa -->
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span><i class="fas fa-box me-2"></i>Produs sursa</span>
+    {% if result.source_competitor %}
+      <span class="badge rounded-pill" style="background:rgba(47,128,237,0.12);color:#1d4ed8;">
+        {{ result.source_competitor.display_name }}
+      </span>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-3"><small class="text-muted d-block">SKU</small><strong>{{ p.sku }}</strong></div>
+      <div class="col-md-5"><small class="text-muted d-block">Titlu</small><strong>{{ p.title }}</strong></div>
+      <div class="col-md-2"><small class="text-muted d-block">Brand</small>{{ p.brand or '—' }}</div>
+      <div class="col-md-2"><small class="text-muted d-block">Pret</small>
+        {% if p.pret %}<strong>{{ "%.2f"|format(p.pret) }} lei</strong>{% else %}—{% endif %}
+      </div>
+      {% if p.descriere %}
+      <div class="col-12"><small class="text-muted d-block">Descriere</small>
+        <small>{{ p.descriere[:200] }}{% if p.descriere|length > 200 %}...{% endif %}</small>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Rezultat AI -->
+<div class="card mb-4">
+  <div class="card-header"><i class="fas fa-robot me-2"></i>Raspuns AI</div>
+  <div class="card-body">
+    {% if result.error %}
+      <div class="alert alert-danger">
+        <i class="fas fa-exclamation-circle"></i> {{ result.error }}
+        {% if 'neconfigurat' in result.error %}
+          <a href="{{ url_for('ai_association.config') }}" class="btn btn-sm btn-primary ms-3">
+            Configureaza AI
+          </a>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if ai.matched_id %}
+      <div class="alert alert-success">
+        <i class="fas fa-check-circle"></i>
+        <strong>Potrivire gasita:</strong> Produs #{{ ai.matched_id }}
+        {% if ai.confidence %}
+          &nbsp;<span class="badge bg-success">{{ (ai.confidence * 100)|int }}% confidence</span>
+        {% endif %}
+        {% if ai.reason %}
+          <div class="mt-1 small">{{ ai.reason }}</div>
+        {% endif %}
+      </div>
+    {% elif not result.error %}
+      <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i> Nicio potrivire gasita.
+        {% if ai.reason %}<div class="mt-1 small">{{ ai.reason }}</div>{% endif %}
+      </div>
+    {% endif %}
+
+    {% if ai.raw %}
+    <details class="mt-3">
+      <summary class="text-muted small" style="cursor:pointer;">Raspuns brut AI</summary>
+      <pre class="bg-light p-3 rounded mt-2 small">{{ ai.raw }}</pre>
+    </details>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Candidati -->
+<div class="card">
+  <div class="card-header">
+    <i class="fas fa-list me-2"></i>Candidati analizati
+    <span class="badge bg-secondary ms-2">{{ result.candidates|length }}</span>
+  </div>
+  <div class="card-body p-0">
+    {% if result.candidates %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Competitor</th>
+            <th>SKU</th>
+            <th>Titlu</th>
+            <th>Brand</th>
+            <th class="text-end">Pret</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in result.candidates %}
+          {% set c = row.product %}
+          <tr {% if ai.matched_id and ai.matched_id|string == c.id|string %}class="table-success"{% endif %}>
+            <td>
+              {% if row.competitor %}
+                <span class="badge rounded-pill" style="background:rgba(47,128,237,0.12);color:#1d4ed8;font-size:0.8rem;">
+                  {{ row.competitor.display_name }}
+                </span>
+              {% else %}
+                <small class="text-muted">{{ c.cod_competitor }}</small>
+              {% endif %}
+            </td>
+            <td><code class="small">{{ c.sku }}</code></td>
+            <td>
+              {{ c.title }}
+              {% if ai.matched_id and ai.matched_id|string == c.id|string %}
+                <span class="badge bg-success ms-1">POTRIVIRE AI</span>
+              {% endif %}
+            </td>
+            <td><small>{{ c.brand or '—' }}</small></td>
+            <td class="text-end">
+              {% if c.pret %}<strong>{{ "%.2f"|format(c.pret) }} lei</strong>{% else %}—{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="p-4 text-center text-muted">Niciun candidat gasit.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="d-flex gap-2 mt-4">
+  <a href="{{ url_for('search.advanced') }}" class="btn btn-soft btn-pill">
+    <i class="fas fa-arrow-left"></i> Inapoi la cautare
+  </a>
+  <a href="{{ url_for('ai_association.config') }}" class="btn btn-soft btn-pill">
+    <i class="fas fa-cog"></i> Configurare AI
+  </a>
+</div>
+
+{% endblock %}

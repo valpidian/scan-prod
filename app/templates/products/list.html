@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block title %}Produse | Scan Pret{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+  <div class="card-header">Filtrare si sortare</div>
+  <div class="card-body">
+    <form method="get" class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label">Cod intern</label>
+        <select class="form-select" name="competitor">
+          <option value="">Toti</option>
+          {% for competitor in competitors %}
+            <option value="{{ competitor.internal_code }}" {% if filters.competitor == competitor.internal_code %}selected{% endif %}>
+              {{ competitor.internal_code }} - {{ competitor.display_name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Cautare</label>
+        <input class="form-control" name="q" value="{{ filters.q }}" placeholder="SKU, title, brand, descriere">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Sortare</label>
+        <select class="form-select" name="sort">
+          <option value="title" {% if filters.sort == 'title' %}selected{% endif %}>Title</option>
+          <option value="sku" {% if filters.sort == 'sku' %}selected{% endif %}>SKU</option>
+          <option value="pret" {% if filters.sort == 'pret' %}selected{% endif %}>Pret</option>
+          <option value="brand" {% if filters.sort == 'brand' %}selected{% endif %}>Brand</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Directie</label>
+        <select class="form-select" name="direction">
+          <option value="asc" {% if filters.direction == 'asc' %}selected{% endif %}>Asc</option>
+          <option value="desc" {% if filters.direction == 'desc' %}selected{% endif %}>Desc</option>
+        </select>
+      </div>
+      <div class="col-12 d-flex gap-2 flex-wrap">
+        <button class="btn btn-primary btn-pill" type="submit">Aplica</button>
+        <a class="btn btn-soft btn-pill" href="{{ url_for('products.list_view') }}">Reseteaza</a>
+        <a class="btn btn-soft btn-pill" href="{{ url_for('import_export.import_view') }}">Import nou</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Lista produse <span class="badge bg-secondary ms-2">{{ products|length }}</span></span>
+    <a class="btn btn-sm btn-primary btn-pill" href="{{ url_for('import_export.import_view') }}">
+      <i class="fas fa-upload me-1"></i> Import nou
+    </a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0" id="products-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Competitor</th>
+          <th>SKU</th>
+          <th>Titlu</th>
+          <th>Pret</th>
+          <th>Brand</th>
+          <th>Asociere</th>
+          <th style="width:110px;">Actiuni</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for product in products %}
+        <!-- Rand produs -->
+        <tr id="row-{{ product.id }}">
+          <td><small class="text-muted">#{{ product.id }}</small></td>
+          <td>
+            <span class="association-pill">{{ product.cod_competitor }}</span>
+            {% if competitor_lookup.get(product.cod_competitor) %}
+              <small class="d-block text-muted mt-1">{{ competitor_lookup.get(product.cod_competitor) }}</small>
+            {% endif %}
+          </td>
+          <td><code class="small">{{ product.sku }}</code></td>
+          <td><span id="display-title-{{ product.id }}">{{ product.title }}</span></td>
+          <td><span id="display-pret-{{ product.id }}">{{ product.pret or '—' }}</span></td>
+          <td><span id="display-brand-{{ product.id }}">{{ product.brand or '—' }}</span></td>
+          <td>
+            <span id="display-asociere-{{ product.id }}">
+              {% if product.asociere %}
+                {% for aid in product.asociere.split(';') if aid %}
+                  <span class="badge bg-success me-1">#{{ aid }}</span>
+                {% endfor %}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </span>
+          </td>
+          <td>
+            <div class="d-flex gap-1">
+              <a href="{{ url_for('ai_association.associate', product_id=product.id) }}"
+                 class="action-btn action-btn-ai" title="Asociere AI">
+                <i class="fas fa-robot"></i>
+              </a>
+              <button type="button"
+                      class="action-btn action-btn-edit"
+                      title="Editeaza"
+                      onclick="toggleEdit({{ product.id }})">
+                <i class="fas fa-pen"></i>
+              </button>
+              <form method="post" action="{{ url_for('products.delete', product_id=product.id) }}"
+                    style="display:inline;"
+                    onsubmit="return confirm('Stergi produsul #{{ product.id }}?')">
+                <button type="submit" class="action-btn action-btn-delete" title="Sterge">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <!-- Rand editare inline (ascuns) -->
+        <tr id="edit-row-{{ product.id }}" class="edit-row" style="display:none;">
+          <td colspan="8" class="p-0">
+            <div class="edit-panel">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="edit-label">SKU</label>
+                  <input type="text" class="form-control form-control-sm" id="edit-sku-{{ product.id }}" value="{{ product.sku }}">
+                </div>
+                <div class="col-md-4">
+                  <label class="edit-label">Titlu</label>
+                  <input type="text" class="form-control form-control-sm" id="edit-title-{{ product.id }}" value="{{ product.title }}">
+                </div>
+                <div class="col-md-2">
+                  <label class="edit-label">Brand</label>
+                  <input type="text" class="form-control form-control-sm" id="edit-brand-{{ product.id }}" value="{{ product.brand or '' }}">
+                </div>
+                <div class="col-md-2">
+                  <label class="edit-label">Pret</label>
+                  <input type="number" step="0.01" class="form-control form-control-sm" id="edit-pret-{{ product.id }}" value="{{ product.pret or '' }}">
+                </div>
+                <div class="col-md-8">
+                  <label class="edit-label">Descriere</label>
+                  <input type="text" class="form-control form-control-sm" id="edit-descriere-{{ product.id }}" value="{{ product.descriere or '' }}">
+                </div>
+                <div class="col-md-4">
+                  <label class="edit-label">Asociere <small class="text-muted">(ID-uri separate prin ;)</small></label>
+                  <input type="text" class="form-control form-control-sm" id="edit-asociere-{{ product.id }}" value="{{ product.asociere or '' }}">
+                </div>
+              </div>
+              <div class="d-flex gap-2 mt-3">
+                <button type="button" class="btn btn-primary btn-pill btn-sm" onclick="saveEdit({{ product.id }})">
+                  <i class="fas fa-save me-1"></i> Salveaza
+                </button>
+                <button type="button" class="btn btn-soft btn-pill btn-sm" onclick="toggleEdit({{ product.id }})">
+                  Anuleaza
+                </button>
+                <span id="save-status-{{ product.id }}" class="ms-2 small align-self-center"></span>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center text-muted py-4">Nu exista date.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>
+.edit-row td { padding: 0 !important; }
+.edit-panel {
+  padding: 1rem 1.2rem;
+  background: linear-gradient(135deg, rgba(47,128,237,0.04), rgba(110,231,200,0.04));
+  border-top: 2px solid rgba(47,128,237,0.18);
+  border-bottom: 2px solid rgba(47,128,237,0.18);
+  animation: slideDown 0.18s ease;
+}
+.edit-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<script>
+function toggleEdit(id) {
+  const editRow = document.getElementById(`edit-row-${id}`);
+  const editBtn = document.querySelector(`#row-${id} .action-btn-edit`);
+  const isOpen = editRow.style.display !== 'none';
+
+  // Inchide toate celelalte
+  document.querySelectorAll('.edit-row').forEach(r => r.style.display = 'none');
+  document.querySelectorAll('.action-btn-edit').forEach(b => b.classList.remove('active'));
+
+  if (!isOpen) {
+    editRow.style.display = 'table-row';
+    editBtn.classList.add('active');
+    document.getElementById(`edit-title-${id}`).focus();
+  }
+}
+
+async function saveEdit(id) {
+  const status = document.getElementById(`save-status-${id}`);
+  const btn = document.querySelector(`#edit-row-${id} .btn-primary`);
+
+  const payload = {
+    sku:       document.getElementById(`edit-sku-${id}`).value,
+    title:     document.getElementById(`edit-title-${id}`).value,
+    brand:     document.getElementById(`edit-brand-${id}`).value,
+    pret:      document.getElementById(`edit-pret-${id}`).value,
+    descriere: document.getElementById(`edit-descriere-${id}`).value,
+    asociere:  document.getElementById(`edit-asociere-${id}`).value,
+  };
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Se salveaza...';
+
+  try {
+    const resp = await fetch(`/products/${id}/edit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+
+    if (data.ok) {
+      // Actualizeaza valorile afisate in rand
+      document.getElementById(`display-title-${id}`).textContent = payload.title;
+      document.getElementById(`display-brand-${id}`).textContent = payload.brand || '—';
+      document.getElementById(`display-pret-${id}`).textContent = payload.pret || '—';
+
+      const asocEl = document.getElementById(`display-asociere-${id}`);
+      if (payload.asociere) {
+        asocEl.innerHTML = payload.asociere.split(';').filter(x=>x)
+          .map(x => `<span class="badge bg-success me-1">#${x}</span>`).join('');
+      } else {
+        asocEl.innerHTML = '<span class="text-muted">—</span>';
+      }
+
+      status.innerHTML = '<span class="text-success"><i class="fas fa-check-circle"></i> Salvat</span>';
+      setTimeout(() => toggleEdit(id), 800);
+    } else {
+      status.innerHTML = `<span class="text-danger">${data.error || 'Eroare'}</span>`;
+    }
+  } catch(err) {
+    status.innerHTML = `<span class="text-danger">Eroare retea</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save me-1"></i> Salveaza';
+  }
+}
+</script>
+
+{% endblock %}

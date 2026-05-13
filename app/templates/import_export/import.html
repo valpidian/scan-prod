@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Import CSV | Scan Pret{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">Import CSV</div>
+  <div class="card-body">
+
+    <!-- PASUL 1: Upload -->
+    <div id="step-upload">
+      <div class="mb-3">
+        <label class="form-label">Competitor intern</label>
+        {% if competitors %}
+          <select id="competitor_code" name="competitor_code" class="form-select" style="max-width:400px;">
+            <option value="">Alege codul intern</option>
+            {% for competitor in competitors %}
+              <option value="{{ competitor.internal_code }}">
+                {{ competitor.internal_code }} - {{ competitor.display_name }}
+              </option>
+            {% endfor %}
+          </select>
+        {% else %}
+          <div class="alert alert-warning">
+            Nu exista competitori. Adauga un URL in sectiunea <a href="{{ url_for('competitors.index') }}">Competitori</a>.
+          </div>
+        {% endif %}
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Fisier CSV</label>
+        <input type="file" id="csv_file" class="form-control" accept=".csv" style="max-width:400px;">
+        <div id="file-progress" class="d-none mt-2">
+          <div class="spinner-border spinner-border-sm" role="status"></div>
+          <span class="ms-2">Se analizeaza...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASUL 2: Mapare (ascuns initial) -->
+    <div id="step-mapping" class="d-none">
+      <div class="alert alert-info">
+        <strong>Fisier:</strong> <span id="info-filename"></span> &nbsp;|&nbsp;
+        <strong>Coloane:</strong> <span id="info-columns"></span>
+      </div>
+
+      <h6 class="mb-3">Mapeaza coloanele CSV la campurile bazei de date</h6>
+
+      <div id="mapping-fields"></div>
+
+      <div id="validation-msg" class="mt-3"></div>
+
+      <div class="d-flex gap-2 mt-4">
+        <button type="button" id="btn-confirm" class="btn btn-primary btn-pill" disabled>
+          <i class="fas fa-check"></i> Confirma si Importa
+        </button>
+        <button type="button" id="btn-back" class="btn btn-soft btn-pill">
+          <i class="fas fa-arrow-left"></i> Inapoi
+        </button>
+      </div>
+    </div>
+
+    <!-- Formular ascuns pentru submit -->
+    <form id="import-form" method="post" enctype="multipart/form-data" class="d-none">
+      <input type="hidden" id="form-competitor" name="competitor_code">
+      <input type="hidden" id="form-filename" name="session_file">
+      <div id="mapping-inputs"></div>
+    </form>
+
+  </div>
+</div>
+
+<script>
+const FIELDS = {
+  'sku':       { label: 'SKU / Cod produs',  required: true },
+  'title':     { label: 'Titlu produs',       required: true },
+  'pret':      { label: 'Pret',               required: true },
+  'brand':     { label: 'Brand / Producator', required: true },
+  'descriere': { label: 'Descriere',          required: true },
+};
+
+const KEYWORDS = {
+  'sku':       ['sku','cod','product_id','product_code','article'],
+  'title':     ['title','name','product_name','denumire','produs'],
+  'pret':      ['pret','price','cost'],
+  'brand':     ['brand','marca','manufacturer','producator'],
+  'descriere': ['descriere','description','details'],
+};
+
+let csvColumns = [];
+let mappingState = {};
+let parsedFile = null;
+
+Object.keys(FIELDS).forEach(f => { mappingState[f] = ''; });
+
+document.getElementById('csv_file').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  parsedFile = file;
+  document.getElementById('file-progress').classList.remove('d-none');
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    document.getElementById('file-progress').classList.add('d-none');
+    try {
+      parseAndShow(ev.target.result, file.name);
+    } catch(err) {
+      alert('Eroare CSV: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+});
+
+function parseAndShow(text, filename) {
+  const lines = text.trim().split('\n');
+  const header = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  csvColumns = header;
+
+  // Sugereaza mapari
+  Object.keys(FIELDS).forEach(f => { mappingState[f] = ''; });
+  csvColumns.forEach(col => {
+    const lc = col.toLowerCase();
+    for (const [field, keys] of Object.entries(KEYWORDS)) {
+      if (!mappingState[field] && keys.some(k => lc.includes(k))) {
+        mappingState[field] = col;
+        return;
+      }
+    }
+  });
+
+  document.getElementById('info-filename').textContent = filename;
+  document.getElementById('info-columns').textContent = csvColumns.length;
+
+  // Construieste randurile de mapare
+  const container = document.getElementById('mapping-fields');
+  container.innerHTML = '';
+  const table = document.createElement('table');
+  table.className = 'table table-sm';
+  table.innerHTML = `<thead class="table-light"><tr><th>Camp baza de date</th><th>Coloana CSV</th></tr></thead>`;
+  const tbody = document.createElement('tbody');
+
+  Object.entries(FIELDS).forEach(([field, cfg]) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <strong>${cfg.label}</strong>
+        ${cfg.required ? '<span class="badge bg-danger ms-1">obligatoriu</span>' : ''}
+      </td>
+      <td>
+        <select class="form-select form-select-sm mapping-sel" data-field="${field}" style="max-width:300px;">
+          <option value="">-- Neglijeaza --</option>
+          ${csvColumns.map(col => `<option value="${col}" ${mappingState[field]===col?'selected':''}>${col}</option>`).join('')}
+        </select>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  container.appendChild(table);
+
+  document.querySelectorAll('.mapping-sel').forEach(sel => {
+    sel.addEventListener('change', function() {
+      mappingState[this.dataset.field] = this.value;
+      validate();
+    });
+  });
+
+  document.getElementById('step-upload').classList.add('d-none');
+  document.getElementById('step-mapping').classList.remove('d-none');
+  validate();
+}
+
+function validate() {
+  const missing = Object.entries(FIELDS)
+    .filter(([f, cfg]) => cfg.required && !mappingState[f])
+    .map(([f, cfg]) => cfg.label);
+  const btn = document.getElementById('btn-confirm');
+  const msg = document.getElementById('validation-msg');
+  if (missing.length > 0) {
+    btn.disabled = true;
+    msg.innerHTML = `<div class="alert alert-warning">Campuri obligatorii nemapate: <strong>${missing.join(', ')}</strong></div>`;
+  } else {
+    btn.disabled = false;
+    msg.innerHTML = `<div class="alert alert-success">Mapare completa. Poti continua importul.</div>`;
+  }
+}
+
+document.getElementById('btn-back').addEventListener('click', function() {
+  document.getElementById('step-mapping').classList.add('d-none');
+  document.getElementById('step-upload').classList.remove('d-none');
+  document.getElementById('csv_file').value = '';
+});
+
+document.getElementById('btn-confirm').addEventListener('click', function() {
+  const competitorCode = document.getElementById('competitor_code').value;
+  if (!competitorCode) { alert('Alege un competitor!'); return; }
+
+  document.getElementById('form-competitor').value = competitorCode;
+
+  const inputs = document.getElementById('mapping-inputs');
+  inputs.innerHTML = '';
+  Object.entries(mappingState).forEach(([field, col]) => {
+    if (col) {
+      const inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = `mapping[${col}]`;
+      inp.value = field;
+      inputs.appendChild(inp);
+    }
+  });
+
+  // Adauga fisierul in formular si trimite
+  const dt = new DataTransfer();
+  dt.items.add(parsedFile);
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.name = 'csv_file';
+  fileInput.files = dt.files;
+  document.getElementById('import-form').appendChild(fileInput);
+  document.getElementById('import-form').classList.remove('d-none');
+  document.getElementById('import-form').submit();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,7 @@
+.sidebar-nav a {
+  transition: transform .16s ease, background .16s ease, border-color .16s ease;
+}
+
+.sidebar-nav a:hover {
+  transform: translateX(2px);
+}

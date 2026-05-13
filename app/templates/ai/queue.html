@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Coada AI | Scan Pret{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">Coada AI</div>
+  <div class="card-body">
+    <p class="mb-4 text-muted">Aceasta pagina poate deveni ulterior coada de procesare pentru asociere automata.</p>
+    <a class="btn btn-primary btn-pill" href="{{ url_for('products.list_view') }}">Inapoi la produse</a>
+  </div>
+</div>
+{% endblock %}

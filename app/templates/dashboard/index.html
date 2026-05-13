@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Scan Pret{% endblock %}
+
+{% block content %}
+<section class="dashboard-hero card mb-4">
+  <div class="card-body hero-layout">
+    <div class="hero-copy">
+      <span class="eyebrow">Control center</span>
+      <h2 class="display-6 mb-3">Un spatiu curat pentru importuri, comparatii si asociere AI</h2>
+      <p class="hero-description mb-4">
+        Fluxul este gandit ca un client de mail: navigare rapida, carduri dense si informatia cea mai importanta la vedere.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-soft btn-pill" href="{{ url_for('competitors.index') }}">Competitori</a>
+        <a class="btn btn-primary btn-pill" href="{{ url_for('import_export.import_view') }}">Importa CSV</a>
+        <a class="btn btn-soft btn-pill" href="{{ url_for('products.list_view') }}">Vezi produse</a>
+        <a class="btn btn-outline-secondary btn-pill" href="{{ url_for('search.advanced') }}">Cautare complexa</a>
+      </div>
+    </div>
+
+    <div class="hero-metrics">
+      <div class="metric-tile">
+        <span>Produse totale</span>
+        <strong>{{ total_products }}</strong>
+      </div>
+      <div class="metric-tile">
+        <span>Competitori</span>
+        <strong>{{ competitors }}</strong>
+      </div>
+      <div class="metric-tile">
+        <span>Notificari necitite</span>
+        <strong>{{ unread_notifications|length }}</strong>
+      </div>
+      <div class="metric-tile metric-tile-accent">
+        <span>Flux AI</span>
+        <strong>Pregatit</strong>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Activitate recenta</span>
+        <a class="small" href="{{ url_for('notifications.list_view') }}">istoric complet</a>
+      </div>
+      <div class="card-body">
+        {% if recent_notifications %}
+          <div class="activity-feed">
+            {% for note in recent_notifications %}
+              <article class="activity-item">
+                <div class="activity-dot activity-{{ note.level }}"></div>
+                <div class="activity-copy">
+                  <div class="activity-title">{{ note.title }}</div>
+                  <div class="text-muted small">{{ note.message }}</div>
+                </div>
+                <div class="activity-meta small text-muted">{{ note.created_at.strftime('%d.%m %H:%M') }}</div>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="mb-0 text-muted">Nu exista activitate inca.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header">Flux de lucru</div>
+      <div class="card-body">
+        <div class="workflow-list">
+          <div class="workflow-step">
+            <div class="workflow-index">1</div>
+            <div>
+              <strong>Import CSV</strong>
+              <div class="small text-muted">Incarca datele competitorilor in baza de date.</div>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="workflow-index">2</div>
+            <div>
+              <strong>Cautare complexa</strong>
+              <div class="small text-muted">Gaseste produse similare dupa titlu, brand si descriere.</div>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="workflow-index">3</div>
+            <div>
+              <strong>Asociere AI</strong>
+              <div class="small text-muted">Trimite candidatii catre model si scrie rezultatul in baza.</div>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="workflow-index">4</div>
+            <div>
+              <strong>Export CSV</strong>
+              <div class="small text-muted">Descarca datele filtrate pentru un competitor anume.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

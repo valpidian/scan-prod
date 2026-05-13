@@ -1,0 +1,12 @@
+{% if recent_notifications %}
+  <div class="notification-list">
+    {% for note in recent_notifications %}
+      <div class="notification-item notification-{{ note.level }}">
+        <strong>{{ note.title }}</strong>
+        <div class="small">{{ note.message }}</div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="text-muted small mb-0">Nu exista notificari.</p>
+{% endif %}

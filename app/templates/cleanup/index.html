@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% block title %}Curatare Date | Scan Pret{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <span class="eyebrow">Validare &amp; Normalizare</span>
+    <h4 class="mb-0">Curatare Date</h4>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-soft btn-pill btn-sm" onclick="location.reload()">
+      <i class="fas fa-sync"></i> Reanalizeaza
+    </button>
+    {% if dirty %}
+    <button class="btn btn-primary btn-pill btn-sm" id="btn-clean-all">
+      <i class="fas fa-broom"></i> Curata tot ({{ dirty|length }})
+    </button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Statistici -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="metric-tile">
+      <span>Total produse</span>
+      <strong>{{ total }}</strong>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="metric-tile metric-tile-accent">
+      <span>Necesita curatare</span>
+      <strong style="color:#dc2626;">{{ stats.total_dirty }}</strong>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="metric-tile">
+      <span>Curate</span>
+      <strong style="color:#16a34a;">{{ total - stats.total_dirty }}</strong>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="metric-tile">
+      <span>Tipuri probleme</span>
+      <div class="d-flex gap-1 flex-wrap mt-1">
+        {% if stats.html %}<span class="badge bg-danger">HTML: {{ stats.html }}</span>{% endif %}
+        {% if stats.url %}<span class="badge bg-warning text-dark">URL: {{ stats.url }}</span>{% endif %}
+        {% if stats.filepath %}<span class="badge bg-secondary">Fisiere: {{ stats.filepath }}</span>{% endif %}
+        {% if stats.entity %}<span class="badge bg-info text-dark">Entitati: {{ stats.entity }}</span>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if not dirty %}
+  <div class="card">
+    <div class="card-body text-center py-5">
+      <i class="fas fa-check-circle fa-3x text-success mb-3 d-block"></i>
+      <h5>Toate datele sunt curate!</h5>
+      <p class="text-muted mb-0">Nu s-au gasit taguri HTML, URL-uri sau referinte la fisiere.</p>
+    </div>
+  </div>
+{% else %}
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <span><i class="fas fa-exclamation-triangle text-warning me-2"></i>Produse cu date murdare</span>
+      <div class="d-flex gap-2 align-items-center">
+        <input type="text" class="form-control form-control-sm" id="filter-input"
+               placeholder="Filtreaza..." style="width:200px;">
+        <span class="badge bg-danger">{{ dirty|length }}</span>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" id="dirty-table">
+        <thead class="table-light">
+          <tr>
+            <th style="width:40px;">
+              <input type="checkbox" id="check-all" class="form-check-input">
+            </th>
+            <th>ID</th>
+            <th>Competitor</th>
+            <th>SKU</th>
+            <th>Titlu</th>
+            <th>Campuri afectate</th>
+            <th>Probleme</th>
+            <th style="width:120px;">Actiuni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in dirty %}
+          <tr id="dirty-row-{{ item.id }}" data-id="{{ item.id }}">
+            <td><input type="checkbox" class="form-check-input row-check" value="{{ item.id }}"></td>
+            <td><small class="text-muted">#{{ item.id }}</small></td>
+            <td><span class="association-pill">{{ item.cod_competitor }}</span></td>
+            <td><code class="small">{{ item.sku }}</code></td>
+            <td><small>{{ item.title }}</small></td>
+            <td>
+              {% for f in item.fields %}
+                <span class="badge bg-light text-dark border me-1">{{ f }}</span>
+              {% endfor %}
+            </td>
+            <td>
+              {% for issue in item.issues %}
+                {% if issue == 'html' %}<span class="badge bg-danger me-1">HTML</span>
+                {% elif issue == 'url' %}<span class="badge bg-warning text-dark me-1">URL</span>
+                {% elif issue == 'filepath' %}<span class="badge bg-secondary me-1">Fisier</span>
+                {% elif issue == 'entity' %}<span class="badge bg-info text-dark me-1">Entitate</span>
+                {% endif %}
+              {% endfor %}
+            </td>
+            <td>
+              <div class="d-flex gap-1">
+                <button class="action-btn action-btn-edit" title="Preview"
+                        onclick="previewProduct({{ item.id }})">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button class="action-btn action-btn-ai" title="Curata"
+                        onclick="cleanOne({{ item.id }})">
+                  <i class="fas fa-broom"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <!-- Rand preview (ascuns) -->
+          <tr id="preview-row-{{ item.id }}" style="display:none;">
+            <td colspan="8" class="p-0">
+              <div class="edit-panel" id="preview-content-{{ item.id }}">
+                <div class="text-center text-muted py-2">
+                  <div class="spinner-border spinner-border-sm"></div> Se incarca...
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
+<style>
+.edit-panel { padding:1rem 1.2rem; background:linear-gradient(135deg,rgba(47,128,237,0.04),rgba(110,231,200,0.04)); border-top:2px solid rgba(47,128,237,0.18); border-bottom:2px solid rgba(47,128,237,0.18); }
+.diff-before { background:#fff0f0; color:#dc2626; padding:2px 6px; border-radius:4px; font-size:0.8rem; word-break:break-all; }
+.diff-after  { background:#f0fff4; color:#16a34a; padding:2px 6px; border-radius:4px; font-size:0.8rem; word-break:break-all; }
+</style>
+
+<script>
+// Selectare toate
+document.getElementById('check-all')?.addEventListener('change', function() {
+  document.querySelectorAll('.row-check').forEach(c => c.checked = this.checked);
+});
+
+// Filtru
+document.getElementById('filter-input')?.addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('#dirty-table tbody tr[id^="dirty-row"]').forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    const pid = tr.dataset.id;
+    const prev = document.getElementById(`preview-row-${pid}`);
+    if (prev) prev.style.display = 'none';
+  });
+});
+
+// Preview
+async function previewProduct(id) {
+  const previewRow = document.getElementById(`preview-row-${id}`);
+  const content = document.getElementById(`preview-content-${id}`);
+
+  // Toggle
+  if (previewRow.style.display !== 'none') {
+    previewRow.style.display = 'none';
+    return;
+  }
+
+  // Inchide alte preview-uri
+  document.querySelectorAll('[id^="preview-row-"]').forEach(r => r.style.display = 'none');
+  previewRow.style.display = 'table-row';
+
+  const resp = await fetch(`/cleanup/preview/${id}`);
+  const data = await resp.json();
+
+  if (!Object.keys(data.changes).length) {
+    content.innerHTML = '<p class="text-muted mb-0">Nicio modificare necesara.</p>';
+    return;
+  }
+
+  let html = '<div class="row g-3">';
+  for (const [field, vals] of Object.entries(data.changes)) {
+    html += `
+      <div class="col-12">
+        <div class="edit-label mb-1">${field}</div>
+        <div class="mb-1"><span class="text-muted small me-2">Inainte:</span><span class="diff-before">${escapeHtml(vals.before || '')}</span></div>
+        <div><span class="text-muted small me-2">Dupa:</span><span class="diff-after">${escapeHtml(vals.after || '')}</span></div>
+      </div>`;
+  }
+  html += '</div>';
+  html += `<div class="mt-3">
+    <button class="btn btn-success btn-pill btn-sm" onclick="cleanOne(${id})">
+      <i class="fas fa-check me-1"></i> Aplica curatarea
+    </button>
+  </div>`;
+  content.innerHTML = html;
+}
+
+// Curata un produs
+async function cleanOne(id) {
+  const resp = await fetch(`/cleanup/apply/${id}`, { method: 'POST' });
+  const data = await resp.json();
+  if (data.ok) {
+    const row = document.getElementById(`dirty-row-${id}`);
+    const prev = document.getElementById(`preview-row-${id}`);
+    if (row) row.style.opacity = '0.4';
+    if (prev) prev.style.display = 'none';
+    row.innerHTML = `<td colspan="8" class="text-center text-success py-2">
+      <i class="fas fa-check-circle me-1"></i> Produs #${id} curatat (${data.changes} campuri modificate)
+    </td>`;
+  }
+}
+
+// Curata toate selectate / toate
+document.getElementById('btn-clean-all')?.addEventListener('click', async function() {
+  const checked = [...document.querySelectorAll('.row-check:checked')].map(c => parseInt(c.value));
+  const ids = checked.length
+    ? checked
+    : [...document.querySelectorAll('.row-check')].map(c => parseInt(c.value));
+
+  if (!ids.length) return;
+  if (!confirm(`Curati ${ids.length} produse?`)) return;
+
+  this.disabled = true;
+  this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Se curata...';
+
+  const resp = await fetch('/cleanup/apply-all', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  });
+  const data = await resp.json();
+  if (data.ok) {
+    alert(`${data.cleaned} produse curatate. Pagina se reincarca...`);
+    location.reload();
+  }
+});
+
+function escapeHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+
+{% endblock %}

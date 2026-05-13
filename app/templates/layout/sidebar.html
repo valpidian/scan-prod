@@ -1,0 +1,75 @@
+{% set current_endpoint = request.endpoint or '' %}
+<div class="sidebar-panel">
+  <section class="sidebar-flow">
+    <div class="sidebar-section-head">
+      <span class="eyebrow">Fluxul aplicatiei</span>
+      <strong>Ordinea de lucru</strong>
+    </div>
+
+    <div class="workflow-sidebar">
+      {% for step in workflow_steps %}
+        {% if step.url %}
+          <a class="workflow-step-card {% if current_endpoint in step.endpoints %}is-active{% endif %}" href="{{ step.url }}">
+        {% else %}
+          <div class="workflow-step-card workflow-step-static">
+        {% endif %}
+            <span class="workflow-step-number">{{ step.number }}</span>
+            <div class="workflow-step-body">
+              <strong>{{ step.title }}</strong>
+              <small>{{ step.subtitle }}</small>
+              {% if step.note %}
+                <span class="workflow-step-note">{{ step.note }}</span>
+              {% endif %}
+            </div>
+        {% if step.url %}
+          </a>
+        {% else %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="sidebar-card">
+    <div class="sidebar-card-head">
+      <h2 class="h6 mb-0">Competitori</h2>
+      <a class="small" href="{{ url_for('competitors.index') }}">Adauga URL</a>
+    </div>
+
+    <a class="sidebar-cta" href="{{ url_for('competitors.index') }}">
+      Adauga un competitor nou
+    </a>
+
+    {% if sidebar_competitors %}
+      <div class="competitor-list">
+        {% for competitor in sidebar_competitors[:5] %}
+          <a class="competitor-item" href="{{ url_for('competitors.index') }}">
+            <span>{{ competitor.internal_code }}</span>
+            <small>{{ competitor.display_name }}</small>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-muted small mb-0">
+        Nu exista competitori inca. Adauga primul URL din sectiunea dedicata.
+      </p>
+    {% endif %}
+  </section>
+
+  <section class="sidebar-card">
+    <div class="sidebar-card-head">
+      <h2 class="h6 mb-0">Notificari recente</h2>
+      <a class="small" href="{{ url_for('notifications.list_view') }}">Toate</a>
+    </div>
+    {% include "partials/notifications.html" %}
+  </section>
+
+  <section class="sidebar-footer-card">
+    <div class="small text-uppercase">Stare sistem</div>
+    <strong>Local sync activ</strong>
+    <p class="mb-0">Serverul ruleaza in mod de lucru local.</p>
+    <a href="{{ url_for('ai_association.config') }}" class="btn btn-soft btn-pill w-100 mt-3" style="font-size:0.85rem;">
+      <i class="fas fa-cog"></i> Configurare AI
+    </a>
+  </section>
+</div>

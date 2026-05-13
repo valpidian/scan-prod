@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Editeaza produs #{{ product.id }} | Scan Pret{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:700px;">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span><i class="fas fa-pen me-2"></i>Editeaza produs <code>#{{ product.id }}</code></span>
+    <a href="{{ url_for('products.list_view') }}" class="btn btn-soft btn-pill btn-sm">Inapoi</a>
+  </div>
+  <div class="card-body">
+    <form method="post">
+      <div class="mb-3">
+        <label class="form-label fw-bold">SKU</label>
+        <input type="text" name="sku" class="form-control" value="{{ product.sku }}">
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">Titlu</label>
+        <input type="text" name="title" class="form-control" value="{{ product.title }}">
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label fw-bold">Brand</label>
+          <input type="text" name="brand" class="form-control" value="{{ product.brand or '' }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold">Pret</label>
+          <input type="number" step="0.01" name="pret" class="form-control" value="{{ product.pret or '' }}">
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-bold">Descriere</label>
+        <textarea name="descriere" class="form-control" rows="4">{{ product.descriere or '' }}</textarea>
+      </div>
+      <div class="mb-4">
+        <label class="form-label fw-bold">Asociere <small class="text-muted fw-normal">(ID-uri separate prin ;)</small></label>
+        <input type="text" name="asociere" class="form-control" value="{{ product.asociere or '' }}" placeholder="ex: 123;456">
+      </div>
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-pill">
+          <i class="fas fa-save me-1"></i> Salveaza
+        </button>
+        <a href="{{ url_for('products.list_view') }}" class="btn btn-soft btn-pill">Anuleaza</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

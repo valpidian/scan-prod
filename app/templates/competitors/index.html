@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Competitori | Scan Pret{% endblock %}
+
+{% block content %}
+<section class="card mb-4">
+  <div class="card-body">
+    <span class="eyebrow">Sectiune separata</span>
+    <h2 class="h4 mb-2">Competitori</h2>
+    <p class="text-muted mb-0">
+      Adaugi doar URL-ul competitorului. Sistemul genereaza automat un cod intern de tip <strong>CMP001</strong>, <strong>CMP002</strong> si il foloseste in import, export si filtrare.
+    </p>
+  </div>
+</section>
+
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header">Adauga competitor</div>
+      <div class="card-body">
+        <form method="post">
+          <div class="mb-3">
+            <label class="form-label">URL competitor</label>
+            <input
+              type="url"
+              name="source_url"
+              class="form-control"
+              placeholder="https://exemplu.ro"
+              required
+            >
+          </div>
+          <div class="mb-3 small text-muted">
+            Codul intern este generat automat si este unic.
+          </div>
+          <button class="btn btn-primary btn-pill" type="submit">Genereaza cod</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Lista competitori</span>
+        <span class="small text-muted">{{ competitors|length }} inregistrari</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Cod intern</th>
+              <th>Host</th>
+              <th>URL</th>
+              <th>Stare</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for competitor in competitors %}
+              <tr>
+                <td>
+                  <span class="association-pill">{{ competitor.internal_code }}</span>
+                </td>
+                <td>
+                  <strong>{{ competitor.display_name }}</strong>
+                  <div class="small text-muted">{{ competitor.source_host }}</div>
+                </td>
+                <td class="text-break">
+                  <a href="{{ competitor.source_url }}" target="_blank" rel="noreferrer">{{ competitor.source_url }}</a>
+                </td>
+                <td>
+                  {% if competitor.is_active %}
+                    <span class="badge text-bg-success">Activ</span>
+                  {% else %}
+                    <span class="badge text-bg-secondary">Inactiv</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="4" class="text-center text-muted py-4">
+                  Nu exista competitori inregistrati inca.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

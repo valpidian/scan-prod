@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Notificari | Scan Pret{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">Notificari</div>
+  <div class="card-body">
+    {% if notifications %}
+      <div class="notification-list notification-list-full">
+        {% for note in notifications %}
+          <div class="notification-item notification-{{ note.level }}">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+              <div>
+                <strong>{{ note.title }}</strong>
+                <div class="small">{{ note.message }}</div>
+                <div class="small mt-2">Status: {{ 'citita' if note.is_read else 'necitita' }}</div>
+              </div>
+              {% if not note.is_read %}
+                <form method="post" action="{{ url_for('notifications.read', notification_id=note.id) }}">
+                  <button class="btn btn-sm btn-outline-primary btn-pill" type="submit">Marcheaza</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="mb-0 text-muted">Nu exista notificari.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% block title %}AI Workbench | Scan Pret{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <span class="eyebrow">AI Workbench</span>
+    <h4 class="mb-0">Asociere produs #{{ source.id }}</h4>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('ai_association.config') }}" class="btn btn-soft btn-pill btn-sm">
+      <i class="fas fa-cog"></i> Config AI
+      {% if not config or not config.api_key %}
+        <span class="badge bg-danger ms-1">!</span>
+      {% endif %}
+    </a>
+    <a href="{{ url_for('search.advanced') }}" class="btn btn-soft btn-pill btn-sm">
+      <i class="fas fa-arrow-left"></i> Inapoi
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  <!-- COLOANA STANGA: Produs sursa + Candidati -->
+  <div class="col-lg-6">
+
+    <!-- PRODUS SURSA -->
+    <div class="card mb-4">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-box-open me-2 text-primary"></i><strong>Produs sursa</strong></span>
+        {% if source_competitor %}
+          <span class="badge rounded-pill" style="background:rgba(47,128,237,0.15);color:#1d4ed8;">
+            {{ source_competitor.display_name }}
+          </span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <table class="table table-sm mb-0">
+          <tbody>
+            <tr>
+              <td class="text-muted" style="width:110px;">ID</td>
+              <td><code class="bg-light px-2 py-1 rounded">{{ source.id }}</code></td>
+            </tr>
+            <tr>
+              <td class="text-muted">SKU</td>
+              <td><code class="bg-light px-2 py-1 rounded">{{ source.sku }}</code></td>
+            </tr>
+            <tr>
+              <td class="text-muted">Titlu</td>
+              <td><strong>{{ source.title }}</strong></td>
+            </tr>
+            <tr>
+              <td class="text-muted">Brand</td>
+              <td>{{ source.brand or '—' }}</td>
+            </tr>
+            <tr>
+              <td class="text-muted">Pret</td>
+              <td>
+                {% if source.pret %}
+                  <strong>{{ "%.2f"|format(source.pret) }} lei</strong>
+                {% else %}—{% endif %}
+              </td>
+            </tr>
+            {% if source.descriere %}
+            <tr>
+              <td class="text-muted">Descriere</td>
+              <td><small class="text-muted">{{ source.descriere[:300] }}{% if source.descriere|length > 300 %}...{% endif %}</small></td>
+            </tr>
+            {% endif %}
+            {% if source.asociere %}
+            <tr>
+              <td class="text-muted">Asocieri</td>
+              <td>
+                {% for aid in source.asociere.split(';') if aid %}
+                  <span class="badge bg-success me-1">#{{ aid }}</span>
+                {% endfor %}
+              </td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CANDIDATI -->
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-list me-2 text-success"></i><strong>Candidati gasiti</strong></span>
+        <span class="badge bg-secondary">{{ candidates|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        {% if candidates %}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0" id="candidates-table">
+            <thead class="table-light">
+              <tr>
+                <th style="width:50px;">ID</th>
+                <th>Titlu / SKU</th>
+                <th>Brand</th>
+                <th class="text-end">Pret</th>
+                <th style="width:40px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in candidates %}
+              {% set c = row.product %}
+              <tr id="candidate-row-{{ c.id }}" data-id="{{ c.id }}">
+                <td>
+                  <code class="bg-light px-1 rounded small">#{{ c.id }}</code>
+                </td>
+                <td>
+                  <div class="fw-semibold small">{{ c.title[:60] }}{% if c.title|length > 60 %}...{% endif %}</div>
+                  <div class="text-muted" style="font-size:0.75rem;">
+                    SKU: {{ c.sku }}
+                    {% if row.competitor %}
+                      &nbsp;·&nbsp;
+                      <span style="color:#1d4ed8;">{{ row.competitor.display_name }}</span>
+                    {% endif %}
+                  </div>
+                </td>
+                <td><small>{{ c.brand or '—' }}</small></td>
+                <td class="text-end">
+                  {% if c.pret %}
+                    <small><strong>{{ "%.2f"|format(c.pret) }}</strong></small>
+                  {% else %}
+                    <small class="text-muted">—</small>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="match-indicator" id="match-{{ c.id }}" style="display:none;">
+                    <i class="fas fa-check-circle text-success"></i>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+          <div class="p-4 text-center text-muted">
+            <i class="fas fa-search fa-2x mb-2 d-block"></i>
+            Niciun candidat gasit pentru acest produs.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- COLOANA DREAPTA: Prompt + Rezultat AI -->
+  <div class="col-lg-6">
+
+    <!-- PROMPT -->
+    <div class="card mb-4">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-terminal me-2 text-warning"></i><strong>Prompt catre AI</strong></span>
+        <div class="d-flex gap-2 align-items-center">
+          {% if config %}
+            <small class="text-muted">{{ config.provider }} / {{ config.model }}</small>
+          {% endif %}
+          <button type="button" class="btn btn-sm btn-soft btn-pill" id="btn-reset-prompt">
+            <i class="fas fa-undo"></i> Reset
+          </button>
+        </div>
+      </div>
+      <div class="card-body p-2">
+        <textarea id="prompt-editor" class="form-control font-monospace"
+                  style="min-height:320px; font-size:0.8rem; resize:vertical;">{{ prompt }}</textarea>
+      </div>
+      <div class="card-footer bg-light d-flex align-items-center justify-content-between">
+        <small class="text-muted">
+          Variabile: <code>{sku}</code> <code>{title}</code> <code>{brand}</code>
+          <code>{descriere}</code> <code>{candidates}</code>
+        </small>
+        <button type="button" class="btn btn-primary btn-pill" id="btn-send-ai"
+                {% if not config or not config.api_key %}disabled title="Configureaza AI mai intai"{% endif %}>
+          <i class="fas fa-robot me-1"></i> Trimite la AI
+        </button>
+      </div>
+    </div>
+
+    <!-- REZULTAT AI -->
+    <div class="card" id="result-card" style="display:none;">
+      <div class="card-header">
+        <i class="fas fa-brain me-2"></i><strong>Rezultat AI</strong>
+      </div>
+      <div class="card-body" id="result-body">
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="ai-loading" style="display:none;" class="text-center py-4">
+      <div class="spinner-border text-primary" role="status"></div>
+      <div class="mt-2 text-muted">Se proceseaza...</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const PRODUCT_ID = {{ source.id }};
+const ORIGINAL_PROMPT = {{ prompt | tojson }};
+
+document.getElementById('btn-reset-prompt').addEventListener('click', function() {
+  document.getElementById('prompt-editor').value = ORIGINAL_PROMPT;
+});
+
+document.getElementById('btn-send-ai').addEventListener('click', async function() {
+  const btn = this;
+  const prompt = document.getElementById('prompt-editor').value.trim();
+  if (!prompt) return;
+
+  // UI loading
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Se trimite...';
+  document.getElementById('ai-loading').style.display = 'block';
+  document.getElementById('result-card').style.display = 'none';
+
+  // Reseteaza indicatorii de potrivire
+  document.querySelectorAll('.match-indicator').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('#candidates-table tbody tr').forEach(tr => {
+    tr.classList.remove('table-success', 'table-warning');
+  });
+
+  try {
+    const resp = await fetch(`/ai/associate/${PRODUCT_ID}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+
+    const data = await resp.json();
+    showResult(data);
+
+  } catch(err) {
+    showResult({ error: 'Eroare de retea: ' + err.message });
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-robot me-1"></i> Trimite la AI';
+    document.getElementById('ai-loading').style.display = 'none';
+  }
+});
+
+function showResult(data) {
+  const card = document.getElementById('result-card');
+  const body = document.getElementById('result-body');
+  card.style.display = 'block';
+
+  if (data.error) {
+    body.innerHTML = `
+      <div class="alert alert-danger mb-0">
+        <i class="fas fa-exclamation-circle"></i> ${data.error}
+        ${data.error.includes('neconfigurat') ? '<a href="/ai/config" class="btn btn-sm btn-primary ms-3">Configureaza AI</a>' : ''}
+      </div>`;
+    return;
+  }
+
+  const ids = data.matched_ids || [];
+  const confidence = data.confidence ? Math.round(data.confidence * 100) : 0;
+  const confidenceColor = confidence >= 80 ? 'success' : confidence >= 50 ? 'warning' : 'danger';
+
+  // Reseteaza marcajele din tabel
+  document.querySelectorAll('.match-indicator').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('#candidates-table tbody tr').forEach(tr => {
+    tr.classList.remove('table-success', 'table-warning');
+  });
+
+  let html = '';
+
+  if (ids.length > 0) {
+    html += `<div class="alert alert-info mb-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <i class="fas fa-robot me-1"></i>
+          <strong>AI sugereaza ${ids.length} potrivire${ids.length > 1 ? 'i' : ''}:</strong>
+        </div>
+        <span class="badge bg-${confidenceColor}">${confidence}% confidence</span>
+      </div>
+      ${data.reason ? `<div class="mt-1 small">${data.reason}</div>` : ''}
+    </div>`;
+
+    // Checkbox-uri pentru fiecare potrivire sugerata
+    html += `<div class="mb-3">`;
+    ids.forEach(id => {
+      const row = document.getElementById(`candidate-row-${id}`);
+      const title = row ? row.querySelector('td:nth-child(2) .fw-semibold')?.textContent?.trim() : `#${id}`;
+      const sku = row ? row.querySelector('td:nth-child(2) .text-muted')?.textContent?.trim() : '';
+      html += `
+        <div class="form-check mb-2 p-3 border rounded" style="background:rgba(25,135,84,0.06);">
+          <input class="form-check-input confirm-check" type="checkbox" value="${id}" id="check-${id}" checked>
+          <label class="form-check-label" for="check-${id}">
+            <strong>#${id}</strong> — ${escapeHtml(title)}
+            <small class="d-block text-muted">${escapeHtml(sku)}</small>
+          </label>
+        </div>`;
+      if (row) row.classList.add('table-warning');
+      const indicator = document.getElementById(`match-${id}`);
+      if (indicator) indicator.style.display = 'block';
+    });
+    html += `</div>`;
+
+    html += `<button type="button" class="btn btn-success btn-pill w-100" id="btn-confirm-save">
+      <i class="fas fa-check me-1"></i> Confirma si salveaza asocierile selectate
+    </button>`;
+
+  } else {
+    html += `<div class="alert alert-warning mb-0">
+      <i class="fas fa-exclamation-triangle me-1"></i>
+      <strong>Nicio potrivire gasita.</strong>
+      ${data.reason ? `<div class="mt-1 small">${data.reason}</div>` : ''}
+    </div>`;
+  }
+
+  if (data.raw) {
+    html += `<details class="mt-3">
+      <summary class="text-muted small" style="cursor:pointer;">Raspuns brut AI</summary>
+      <pre class="bg-light p-3 rounded mt-2 small mb-0">${escapeHtml(data.raw)}</pre>
+    </details>`;
+  }
+
+  body.innerHTML = html;
+
+  // Buton confirmare
+  const btnConfirm = document.getElementById('btn-confirm-save');
+  if (btnConfirm) {
+    btnConfirm.addEventListener('click', async function() {
+      const checked = [...document.querySelectorAll('.confirm-check:checked')].map(c => c.value);
+      if (!checked.length) { alert('Selecteaza cel putin o potrivire.'); return; }
+
+      btnConfirm.disabled = true;
+      btnConfirm.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Se salveaza...';
+
+      try {
+        const resp = await fetch(`/ai/associate/${PRODUCT_ID}/confirm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ matched_ids: checked }),
+        });
+        const result = await resp.json();
+        if (result.saved) {
+          // Marcheaza randurile confirmate cu verde
+          checked.forEach(id => {
+            const row = document.getElementById(`candidate-row-${id}`);
+            if (row) { row.classList.remove('table-warning'); row.classList.add('table-success'); }
+          });
+          btnConfirm.outerHTML = `<div class="alert alert-success mt-2 mb-0">
+            <i class="fas fa-check-circle me-1"></i> Asocierile au fost salvate: ${checked.map(id => '#'+id).join(', ')}
+          </div>`;
+        }
+      } catch(err) {
+        btnConfirm.disabled = false;
+        btnConfirm.innerHTML = '<i class="fas fa-check me-1"></i> Confirma si salveaza asocierile selectate';
+        alert('Eroare la salvare: ' + err.message);
+      }
+    });
+  }
+}
+
+function escapeHtml(text) {
+  return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+
+{% endblock %}

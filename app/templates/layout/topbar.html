@@ -1,0 +1,31 @@
+<header class="topbar">
+  <div class="topbar-copy">
+    <span class="eyebrow">Mail-style control room</span>
+    <div class="topbar-title-row">
+      <h1 class="h3 mb-1">Scan Pret</h1>
+      <span class="status-badge">Local sync</span>
+    </div>
+    <p class="topbar-subtitle mb-0">Import, cautare, asociere si export intr-un spatiu compact.</p>
+  </div>
+
+  <form class="topbar-search" action="{{ url_for('search.advanced') }}" method="get">
+    <label class="form-label small mb-1" for="topbar-search-input">Cautare rapida</label>
+    <div class="input-group input-group-lg topbar-search-group">
+      <input
+        id="topbar-search-input"
+        type="text"
+        class="form-control"
+        name="q"
+        value="{{ request.args.get('q', '') }}"
+        placeholder="SKU, title, brand sau descriere"
+      >
+      <button class="btn btn-primary btn-pill" type="submit">Cauta</button>
+    </div>
+  </form>
+
+  <div class="topbar-actions">
+    <a class="btn btn-soft btn-pill" href="{{ url_for('competitors.index') }}">Competitori</a>
+    <a class="btn btn-primary btn-pill" href="{{ url_for('import_export.import_view') }}">Import CSV</a>
+    <a class="btn btn-soft btn-pill" href="{{ url_for('products.list_view') }}">Produse</a>
+  </div>
+</header>

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Cautare | Scan Pret{% endblock %}
+
+{% block content %}
+
+<div class="card mb-4">
+  <div class="card-body py-3">
+    <form method="get" class="d-flex gap-2">
+      <input type="text" class="form-control" name="q" value="{{ query_text }}"
+             placeholder="Cauta dupa SKU, titlu, descriere, brand..." autofocus>
+      <button class="btn btn-primary btn-pill px-4" type="submit">Cauta</button>
+    </form>
+  </div>
+</div>
+
+{% if query_text %}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <span class="text-muted">Rezultate pentru</span>
+      <strong class="ms-1">"{{ query_text }}"</strong>
+    </div>
+    <span class="badge bg-primary rounded-pill">{{ results|length }} rezultate</span>
+  </div>
+
+  {% if results %}
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Competitor</th>
+              <th>SKU</th>
+              <th>Titlu produs</th>
+              <th>Brand</th>
+              <th class="text-end">Pret</th>
+              <th>Descriere</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in results %}
+            {% set p = row.product %}
+            {% set c = row.competitor %}
+            <tr>
+              <td>
+                {% if c %}
+                  <span class="badge rounded-pill" style="background:rgba(47,128,237,0.12);color:#1d4ed8;font-size:0.82rem;">
+                    {{ c.display_name }}
+                  </span>
+                  <small class="d-block text-muted mt-1">{{ p.cod_competitor }}</small>
+                {% else %}
+                  <span class="text-muted">{{ p.cod_competitor }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <code class="bg-light px-2 py-1 rounded small">
+                  {{ p.sku | highlight(query_text) }}
+                </code>
+              </td>
+              <td>
+                <span class="fw-600">{{ p.title | highlight(query_text) }}</span>
+              </td>
+              <td>
+                <small>{{ p.brand or '—' }}</small>
+              </td>
+              <td class="text-end">
+                {% if p.pret %}
+                  <strong>{{ "%.2f"|format(p.pret) }} lei</strong>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td style="max-width:300px;">
+                <small class="text-muted">
+                  {% if p.descriere %}
+                    {{ p.descriere[:120] | highlight(query_text) }}{% if p.descriere|length > 120 %}...{% endif %}
+                  {% else %}
+                    —
+                  {% endif %}
+                </small>
+              </td>
+              <td>
+                <a href="{{ url_for('ai_association.associate', product_id=p.id) }}"
+                   class="btn btn-sm btn-soft btn-pill"
+                   title="Trimite la AI pentru asociere">
+                  <i class="fas fa-robot"></i> AI
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="card-body text-center py-5">
+        <i class="fas fa-search fa-2x text-muted mb-3 d-block"></i>
+        <p class="text-muted mb-0">Niciun rezultat pentru <strong>"{{ query_text }}"</strong></p>
+        <small class="text-muted">Incearca un alt termen — SKU, titlu sau descriere</small>
+      </div>
+    </div>
+  {% endif %}
+
+{% else %}
+  <div class="card">
+    <div class="card-body text-center py-5">
+      <i class="fas fa-search fa-2x text-muted mb-3 d-block"></i>
+      <p class="text-muted mb-0">Introdu un termen de cautare</p>
+      <small class="text-muted">Cauta dupa SKU, titlu produs, descriere sau brand</small>
+    </div>
+  </div>
+{% endif %}
+
+{% endblock %}
