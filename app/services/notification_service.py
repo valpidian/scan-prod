@@ -11,13 +11,8 @@ def create_notification(title, message, level="info"):
     return notification
 
 
-def unread_notifications(limit=10):
-    return (
-        Notification.query.filter_by(is_read=False)
-        .order_by(Notification.created_at.desc())
-        .limit(limit)
-        .all()
-    )
+def unread_notifications():
+    return Notification.query.filter_by(is_read=False).count()
 
 
 def recent_notifications(limit=10):

@@ -1,63 +1,95 @@
 {% extends "base.html" %}
-
 {% block title %}Produse | Scan Pret{% endblock %}
 
 {% block content %}
-<div class="card mb-4">
-  <div class="card-header">Filtrare si sortare</div>
-  <div class="card-body">
-    <form method="get" class="row g-3">
-      <div class="col-md-3">
-        <label class="form-label">Cod intern</label>
-        <select class="form-select" name="competitor">
+
+<!-- Filtre -->
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form" class="row g-2 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label mb-1 small fw-bold">Competitor</label>
+        <select class="form-select form-select-sm" name="competitor">
           <option value="">Toti</option>
-          {% for competitor in competitors %}
-            <option value="{{ competitor.internal_code }}" {% if filters.competitor == competitor.internal_code %}selected{% endif %}>
-              {{ competitor.internal_code }} - {{ competitor.display_name }}
+          {% for c in competitors %}
+            <option value="{{ c.internal_code }}" {% if filters.competitor == c.internal_code %}selected{% endif %}>
+              {{ c.internal_code }} - {{ c.display_name }}
             </option>
           {% endfor %}
         </select>
       </div>
       <div class="col-md-3">
-        <label class="form-label">Cautare</label>
-        <input class="form-control" name="q" value="{{ filters.q }}" placeholder="SKU, title, brand, descriere">
+        <label class="form-label mb-1 small fw-bold">Cautare</label>
+        <input class="form-control form-control-sm" name="q" value="{{ filters.q }}" placeholder="SKU, titlu, brand...">
       </div>
-      <div class="col-md-3">
-        <label class="form-label">Sortare</label>
-        <select class="form-select" name="sort">
-          <option value="title" {% if filters.sort == 'title' %}selected{% endif %}>Title</option>
-          <option value="sku" {% if filters.sort == 'sku' %}selected{% endif %}>SKU</option>
-          <option value="pret" {% if filters.sort == 'pret' %}selected{% endif %}>Pret</option>
-          <option value="brand" {% if filters.sort == 'brand' %}selected{% endif %}>Brand</option>
+      <div class="col-md-2">
+        <label class="form-label mb-1 small fw-bold">Sortare</label>
+        <select class="form-select form-select-sm" name="sort">
+          <option value="title" {% if filters.sort=='title' %}selected{% endif %}>Titlu</option>
+          <option value="sku" {% if filters.sort=='sku' %}selected{% endif %}>SKU</option>
+          <option value="pret" {% if filters.sort=='pret' %}selected{% endif %}>Pret</option>
+          <option value="brand" {% if filters.sort=='brand' %}selected{% endif %}>Brand</option>
         </select>
       </div>
-      <div class="col-md-3">
-        <label class="form-label">Directie</label>
-        <select class="form-select" name="direction">
-          <option value="asc" {% if filters.direction == 'asc' %}selected{% endif %}>Asc</option>
-          <option value="desc" {% if filters.direction == 'desc' %}selected{% endif %}>Desc</option>
+      <div class="col-md-1">
+        <label class="form-label mb-1 small fw-bold">Directie</label>
+        <select class="form-select form-select-sm" name="direction">
+          <option value="asc" {% if filters.direction=='asc' %}selected{% endif %}>Asc</option>
+          <option value="desc" {% if filters.direction=='desc' %}selected{% endif %}>Desc</option>
         </select>
       </div>
-      <div class="col-12 d-flex gap-2 flex-wrap">
-        <button class="btn btn-primary btn-pill" type="submit">Aplica</button>
-        <a class="btn btn-soft btn-pill" href="{{ url_for('products.list_view') }}">Reseteaza</a>
-        <a class="btn btn-soft btn-pill" href="{{ url_for('import_export.import_view') }}">Import nou</a>
+      <div class="col-md-2">
+        <label class="form-label mb-1 small fw-bold">Produse / pagina</label>
+        <select class="form-select form-select-sm" name="per_page" onchange="this.form.submit()">
+          {% for n in allowed_per_page %}
+            <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <button class="btn btn-primary btn-pill btn-sm" type="submit">Aplica</button>
+        <a class="btn btn-soft btn-pill btn-sm" href="{{ url_for('products.list_view') }}">Reset</a>
       </div>
     </form>
   </div>
 </div>
 
+<!-- Bara actiuni bloc (apare cand sunt selectate produse) -->
+<div id="bulk-bar" class="card mb-3" style="display:none; border:2px solid rgba(47,128,237,0.3); background:rgba(47,128,237,0.05);">
+  <div class="card-body py-2 d-flex align-items-center gap-3 flex-wrap">
+    <span id="bulk-count" class="fw-bold text-primary"></span>
+    <button class="btn btn-primary btn-pill btn-sm" id="btn-ai-batch">
+      <i class="fas fa-robot me-1"></i> Procesare AI in masa
+    </button>
+    <button class="btn btn-soft btn-pill btn-sm" id="btn-deselect-all">
+      <i class="fas fa-times me-1"></i> Deselecteaza tot
+    </button>
+    <div class="ms-auto d-flex gap-2 align-items-center">
+      <small class="text-muted">Selecteaza rapid:</small>
+      <button class="btn btn-soft btn-pill btn-sm" onclick="selectPage()">Pagina curenta</button>
+      <button class="btn btn-soft btn-pill btn-sm" onclick="selectWithoutAsociere()">Fara asociere</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tabel produse -->
 <div class="card">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <span>Lista produse <span class="badge bg-secondary ms-2">{{ pagination.total }}</span></span>
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-3">
+      <input type="checkbox" class="form-check-input" id="check-all-page" title="Selecteaza pagina">
+      <span>Lista produse</span>
+      <span class="badge bg-secondary">{{ pagination.total }} total</span>
+      <span class="text-muted small">pagina {{ pagination.page }}/{{ pagination.pages }}</span>
+    </div>
     <a class="btn btn-sm btn-primary btn-pill" href="{{ url_for('import_export.import_view') }}">
-      <i class="fas fa-upload me-1"></i> Import nou
+      <i class="fas fa-upload me-1"></i> Import
     </a>
   </div>
   <div class="table-responsive">
     <table class="table table-hover mb-0" id="products-table">
       <thead>
         <tr>
+          <th style="width:36px;"></th>
           <th>ID</th>
           <th>Competitor</th>
           <th>SKU</th>
@@ -70,8 +102,10 @@
       </thead>
       <tbody>
         {% for product in products %}
-        <!-- Rand produs -->
-        <tr id="row-{{ product.id }}">
+        <tr id="row-{{ product.id }}" data-id="{{ product.id }}" data-has-asociere="{{ '1' if product.asociere else '0' }}">
+          <td>
+            <input type="checkbox" class="form-check-input row-check" value="{{ product.id }}">
+          </td>
           <td><small class="text-muted">#{{ product.id }}</small></td>
           <td>
             <span class="association-pill">{{ product.cod_competitor }}</span>
@@ -86,9 +120,13 @@
           <td>
             <span id="display-asociere-{{ product.id }}">
               {% if product.asociere %}
-                {% for aid in product.asociere.split(';') if aid %}
-                  <span class="badge bg-success me-1">#{{ aid }}</span>
-                {% endfor %}
+                <span class="badge bg-success me-1 asociere-toggle" data-id="{{ product.id }}" style="cursor:pointer;" title="Click pentru detalii">
+                  {{ product.asociere.split(';')|select|list|length }} asociat(e)
+                  <i class="fas fa-chevron-down ms-1" style="font-size:0.65rem;"></i>
+                </span>
+                {% if product.pret_preluat %}
+                  <span class="badge bg-info ms-1" title="Pret preluat">{{ "%.2f"|format(product.pret_preluat) }} lei</span>
+                {% endif %}
               {% else %}
                 <span class="text-muted">—</span>
               {% endif %}
@@ -100,15 +138,14 @@
                  class="action-btn action-btn-ai" title="Asociere AI">
                 <i class="fas fa-robot"></i>
               </a>
-              <button type="button"
-                      class="action-btn action-btn-edit"
-                      title="Editeaza"
+              <button type="button" class="action-btn action-btn-edit" title="Editeaza"
                       onclick="toggleEdit({{ product.id }})">
                 <i class="fas fa-pen"></i>
               </button>
               <form method="post" action="{{ url_for('products.delete', product_id=product.id) }}"
                     style="display:inline;"
                     onsubmit="return confirm('Stergi produsul #{{ product.id }}?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="action-btn action-btn-delete" title="Sterge">
                   <i class="fas fa-trash"></i>
                 </button>
@@ -116,9 +153,19 @@
             </div>
           </td>
         </tr>
-        <!-- Rand editare inline (ascuns) -->
+        <!-- Rand asocieri expandabil -->
+        <tr id="asocieri-row-{{ product.id }}" style="display:none;">
+          <td colspan="9" class="p-0">
+            <div class="asocieri-panel" id="asocieri-panel-{{ product.id }}">
+              <div class="text-center py-2 text-muted small">
+                <i class="fas fa-spinner fa-spin"></i> Se incarca...
+              </div>
+            </div>
+          </td>
+        </tr>
+        <!-- Rand editare inline -->
         <tr id="edit-row-{{ product.id }}" class="edit-row" style="display:none;">
-          <td colspan="8" class="p-0">
+          <td colspan="9" class="p-0">
             <div class="edit-panel">
               <div class="row g-3">
                 <div class="col-md-4">
@@ -142,7 +189,7 @@
                   <input type="text" class="form-control form-control-sm" id="edit-descriere-{{ product.id }}" value="{{ product.descriere or '' }}">
                 </div>
                 <div class="col-md-4">
-                  <label class="edit-label">Asociere <small class="text-muted">(ID-uri separate prin ;)</small></label>
+                  <label class="edit-label">Asociere</label>
                   <input type="text" class="form-control form-control-sm" id="edit-asociere-{{ product.id }}" value="{{ product.asociere or '' }}">
                 </div>
               </div>
@@ -150,58 +197,211 @@
                 <button type="button" class="btn btn-primary btn-pill btn-sm" onclick="saveEdit({{ product.id }})">
                   <i class="fas fa-save me-1"></i> Salveaza
                 </button>
-                <button type="button" class="btn btn-soft btn-pill btn-sm" onclick="toggleEdit({{ product.id }})">
-                  Anuleaza
-                </button>
+                <button type="button" class="btn btn-soft btn-pill btn-sm" onclick="toggleEdit({{ product.id }})">Anuleaza</button>
                 <span id="save-status-{{ product.id }}" class="ms-2 small align-self-center"></span>
               </div>
             </div>
           </td>
         </tr>
         {% else %}
-        <tr>
-          <td colspan="8" class="text-center text-muted py-4">Nu exista date.</td>
-        </tr>
+        <tr><td colspan="9" class="text-center text-muted py-4">Nu exista date.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
 
+<!-- Paginare -->
+{% if pagination.pages > 1 %}
+<div class="d-flex justify-content-center align-items-center gap-3 mt-4">
+  <nav>
+    <ul class="pagination mb-0">
+      <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('products.list_view', page=pagination.prev_num, per_page=per_page, **filters) }}">&laquo;</a>
+      </li>
+      {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+        {% if p %}
+          <li class="page-item {% if p == pagination.page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('products.list_view', page=p, per_page=per_page, **filters) }}">{{ p }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+        {% endif %}
+      {% endfor %}
+      <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('products.list_view', page=pagination.next_num, per_page=per_page, **filters) }}">&raquo;</a>
+      </li>
+    </ul>
+  </nav>
+</div>
+{% endif %}
+
 <style>
-.edit-row td { padding: 0 !important; }
-.edit-panel {
-  padding: 1rem 1.2rem;
-  background: linear-gradient(135deg, rgba(47,128,237,0.04), rgba(110,231,200,0.04));
-  border-top: 2px solid rgba(47,128,237,0.18);
-  border-bottom: 2px solid rgba(47,128,237,0.18);
-  animation: slideDown 0.18s ease;
-}
-.edit-label {
-  display: block;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 4px;
-}
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+.asocieri-panel { padding:0.75rem 1.2rem; background:rgba(25,135,84,0.04); border-top:2px solid rgba(25,135,84,0.2); border-bottom:2px solid rgba(25,135,84,0.2); animation:slideDown 0.18s ease; }
+.asocieri-panel table { margin-bottom:0; }
+
+.edit-panel { padding:1rem 1.2rem; background:linear-gradient(135deg,rgba(47,128,237,0.04),rgba(110,231,200,0.04)); border-top:2px solid rgba(47,128,237,0.18); border-bottom:2px solid rgba(47,128,237,0.18); animation:slideDown 0.18s ease; }
+.edit-label { display:block; font-size:0.72rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; }
+@keyframes slideDown { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+tr.selected-row { background:rgba(47,128,237,0.07) !important; }
 </style>
 
 <script>
+// ── Selectie ──────────────────────────────────────────────
+const selectedIds = new Set();
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulk-bar');
+  const cnt = document.getElementById('bulk-count');
+  if (selectedIds.size > 0) {
+    bar.style.display = '';
+    cnt.textContent = `${selectedIds.size} produse selectate`;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function setRowSelected(id, checked) {
+  const row = document.getElementById(`row-${id}`);
+  const cb = row?.querySelector('.row-check');
+  if (checked) { selectedIds.add(id); row?.classList.add('selected-row'); }
+  else { selectedIds.delete(id); row?.classList.remove('selected-row'); }
+  if (cb) cb.checked = checked;
+  updateBulkBar();
+}
+
+document.querySelectorAll('.row-check').forEach(cb => {
+  cb.addEventListener('change', function() {
+    setRowSelected(parseInt(this.value), this.checked);
+  });
+});
+
+document.getElementById('check-all-page').addEventListener('change', function() {
+  document.querySelectorAll('.row-check').forEach(cb => {
+    setRowSelected(parseInt(cb.value), this.checked);
+  });
+});
+
+document.getElementById('btn-deselect-all').addEventListener('click', function() {
+  [...selectedIds].forEach(id => setRowSelected(id, false));
+  document.getElementById('check-all-page').checked = false;
+});
+
+function selectPage() {
+  document.querySelectorAll('.row-check').forEach(cb => setRowSelected(parseInt(cb.value), true));
+  document.getElementById('check-all-page').checked = true;
+}
+
+function selectWithoutAsociere() {
+  document.querySelectorAll('#products-table tbody tr[data-id]').forEach(tr => {
+    if (tr.dataset.hasAsociere === '0') setRowSelected(parseInt(tr.dataset.id), true);
+  });
+}
+
+// ── Procesare AI in masa ──────────────────────────────────
+document.getElementById('btn-ai-batch').addEventListener('click', function() {
+  if (!selectedIds.size) return;
+  const ids = [...selectedIds].join(',');
+  window.location.href = `/products/ai-batch?${[...selectedIds].map(id => `ids=${id}`).join('&')}`;
+});
+
+// ── Asocieri expandabile ─────────────────────────────────
+document.addEventListener('click', async function(e) {
+  const toggle = e.target.closest('.asociere-toggle');
+  if (!toggle) return;
+  const id = toggle.dataset.id;
+  const row = document.getElementById(`asocieri-row-${id}`);
+  const panel = document.getElementById(`asocieri-panel-${id}`);
+  const icon = toggle.querySelector('i');
+
+  if (row.style.display !== 'none') {
+    row.style.display = 'none';
+    icon.className = 'fas fa-chevron-down ms-1';
+    delete panel.dataset.loaded;
+    return;
+  }
+
+  row.style.display = 'table-row';
+  icon.className = 'fas fa-chevron-up ms-1';
+
+  if (panel.dataset.loaded) return;
+
+  try {
+    const resp = await fetch(`/products/${id}/asociate`);
+    const items = await resp.json();
+    if (!items.length) {
+      panel.innerHTML = '<p class="text-muted small mb-0">Niciun produs asociat gasit.</p>';
+    } else {
+      panel.innerHTML = `
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th><th>Competitor</th><th>SKU</th><th>Titlu</th><th>Brand</th>
+              <th class="text-end">Pret</th><th>URL</th><th>Pret preluat</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(p => `
+              <tr>
+                <td><code class="small">#${p.id}</code></td>
+                <td><small>${p.display_name}</small></td>
+                <td><code class="small">${p.sku}</code></td>
+                <td><small>${p.title.substring(0,60)}${p.title.length>60?'...':''}</small></td>
+                <td><small>${p.brand||'—'}</small></td>
+                <td class="text-end">${p.pret ? `<strong>${parseFloat(p.pret).toFixed(2)} lei</strong>` : '<span class="text-muted">—</span>'}</td>
+                <td><a href="${p.url}" class="btn btn-xs btn-soft btn-pill" title="Deschide produs"><i class="fas fa-external-link-alt"></i></a></td>
+                <td>
+                  ${p.pret ? `<button type="button" class="btn btn-xs btn-soft btn-pill btn-pret-list"
+                    data-source="${id}" data-asociat="${p.id}" data-pret="${p.pret}">
+                    <i class="fas fa-tag"></i> Preia pret
+                  </button>` : ''}
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+      panel.dataset.loaded = '1';
+    }
+  } catch(err) {
+    panel.innerHTML = `<p class="text-danger small mb-0">Eroare: ${err.message}</p>`;
+  }
+});
+
+document.addEventListener('click', async function(e) {
+  const btn = e.target.closest('.btn-pret-list');
+  if (!btn) return;
+  const sourceId = btn.dataset.source;
+  const asociatId = btn.dataset.asociat;
+  const pret = btn.dataset.pret;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const resp = await fetch(`/products/${sourceId}/pret-preluat`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({asociat_id: asociatId}),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      btn.outerHTML = `<span class="badge bg-info">${parseFloat(pret).toFixed(2)} lei <i class="fas fa-check"></i></span>`;
+      // Invalideaza cache-ul panoului ca sa se reafiseze la urmatoarea deschidere
+      const panel = document.getElementById(`asocieri-panel-${sourceId}`);
+      if (panel) delete panel.dataset.loaded;
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-tag"></i> Preia pret';
+    }
+  } catch(err) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-tag"></i> Preia pret';
+  }
+});
+
 function toggleEdit(id) {
   const editRow = document.getElementById(`edit-row-${id}`);
   const editBtn = document.querySelector(`#row-${id} .action-btn-edit`);
   const isOpen = editRow.style.display !== 'none';
-
-  // Inchide toate celelalte
   document.querySelectorAll('.edit-row').forEach(r => r.style.display = 'none');
   document.querySelectorAll('.action-btn-edit').forEach(b => b.classList.remove('active'));
-
   if (!isOpen) {
     editRow.style.display = 'table-row';
     editBtn.classList.add('active');
@@ -212,45 +412,31 @@ function toggleEdit(id) {
 async function saveEdit(id) {
   const status = document.getElementById(`save-status-${id}`);
   const btn = document.querySelector(`#edit-row-${id} .btn-primary`);
-
   const payload = {
-    sku:       document.getElementById(`edit-sku-${id}`).value,
-    title:     document.getElementById(`edit-title-${id}`).value,
-    brand:     document.getElementById(`edit-brand-${id}`).value,
-    pret:      document.getElementById(`edit-pret-${id}`).value,
+    sku: document.getElementById(`edit-sku-${id}`).value,
+    title: document.getElementById(`edit-title-${id}`).value,
+    brand: document.getElementById(`edit-brand-${id}`).value,
+    pret: document.getElementById(`edit-pret-${id}`).value,
     descriere: document.getElementById(`edit-descriere-${id}`).value,
-    asociere:  document.getElementById(`edit-asociere-${id}`).value,
+    asociere: document.getElementById(`edit-asociere-${id}`).value,
   };
-
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Se salveaza...';
-
   try {
     const resp = await fetch(`/products/${id}/edit`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
     });
     const data = await resp.json();
-
     if (data.ok) {
-      // Actualizeaza valorile afisate in rand
       document.getElementById(`display-title-${id}`).textContent = payload.title;
       document.getElementById(`display-brand-${id}`).textContent = payload.brand || '—';
       document.getElementById(`display-pret-${id}`).textContent = payload.pret || '—';
-
       const asocEl = document.getElementById(`display-asociere-${id}`);
-      if (payload.asociere) {
-        asocEl.innerHTML = payload.asociere.split(';').filter(x=>x)
-          .map(x => `<span class="badge bg-success me-1">#${x}</span>`).join('');
-      } else {
-        asocEl.innerHTML = '<span class="text-muted">—</span>';
-      }
-
+      asocEl.innerHTML = payload.asociere
+        ? payload.asociere.split(';').filter(x=>x).map(x=>`<span class="badge bg-success me-1">#${x}</span>`).join('')
+        : '<span class="text-muted">—</span>';
       status.innerHTML = '<span class="text-success"><i class="fas fa-check-circle"></i> Salvat</span>';
       setTimeout(() => toggleEdit(id), 800);
-    } else {
-      status.innerHTML = `<span class="text-danger">${data.error || 'Eroare'}</span>`;
     }
   } catch(err) {
     status.innerHTML = `<span class="text-danger">Eroare retea</span>`;
@@ -260,29 +446,5 @@ async function saveEdit(id) {
   }
 }
 </script>
-
-{% if pagination.pages > 1 %}
-<div class="d-flex justify-content-center mt-4">
-  <nav>
-    <ul class="pagination">
-      <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-        <a class="page-link" href="{{ url_for('products.list_view', page=pagination.prev_num, **filters) }}">&laquo;</a>
-      </li>
-      {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
-        {% if p %}
-          <li class="page-item {% if p == pagination.page %}active{% endif %}">
-            <a class="page-link" href="{{ url_for('products.list_view', page=p, **filters) }}">{{ p }}</a>
-          </li>
-        {% else %}
-          <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
-        {% endif %}
-      {% endfor %}
-      <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-        <a class="page-link" href="{{ url_for('products.list_view', page=pagination.next_num, **filters) }}">&raquo;</a>
-      </li>
-    </ul>
-  </nav>
-</div>
-{% endif %}
 
 {% endblock %}

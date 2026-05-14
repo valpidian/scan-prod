@@ -18,6 +18,7 @@
               </div>
               {% if not note.is_read %}
                 <form method="post" action="{{ url_for('notifications.read', notification_id=note.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="btn btn-sm btn-outline-primary btn-pill" type="submit">Marcheaza</button>
                 </form>
               {% endif %}

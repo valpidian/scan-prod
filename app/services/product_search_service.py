@@ -36,7 +36,14 @@ def build_query(filters):
     return query.order_by(sort_column)
 
 
-def complex_search(query_text, limit=100):
+def complex_search(query_text, limit=None):
+    from app.models.search_config import SearchConfig
+    cfg = SearchConfig.get()
+
+    if len(query_text) < cfg.min_query_length:
+        return []
+
+    actual_limit = limit or cfg.search_limit
     pattern = f"%{query_text}%"
     products = (
         CompetitorProduct.query.filter(
@@ -49,21 +56,13 @@ def complex_search(query_text, limit=100):
             )
         )
         .order_by(CompetitorProduct.title.asc())
-        .limit(limit)
+        .limit(actual_limit)
         .all()
     )
 
-    # Aduce toti competitorii intr-un singur query si face map dupa internal_code
     codes = list({p.cod_competitor for p in products})
     competitors_map = {
         c.internal_code: c
         for c in Competitor.query.filter(Competitor.internal_code.in_(codes)).all()
     }
-
-    results = []
-    for p in products:
-        results.append({
-            "product": p,
-            "competitor": competitors_map.get(p.cod_competitor),
-        })
-    return results
+    return [{"product": p, "competitor": competitors_map.get(p.cod_competitor)} for p in products]

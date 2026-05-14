@@ -14,6 +14,8 @@ class CompetitorProduct(db.Model):
     brand = db.Column(db.String(120), nullable=True, index=True)
     descriere = db.Column(db.Text, nullable=True)
     asociere = db.Column(db.Text, nullable=True, default="")
+    pret_preluat = db.Column(db.Float, nullable=True)  # pret preluat manual de la produsul asociat
+    categorie = db.Column(db.String(120), nullable=True, index=True)
     imported_at = db.Column(db.DateTime, nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(

@@ -1,4 +1,5 @@
 import re
+from app.utils.normalizers import normalize_price
 
 
 # Regex pentru URL-uri (http/https/ftp)
@@ -99,4 +100,22 @@ def clean_product(product):
                 changes[field] = {'before': original, 'after': cleaned}
                 issues_found.update(issues)
 
+    # Curata pretul
+    pret_original = getattr(product, 'pret', None)
+    pret_str = str(pret_original) if pret_original is not None else None
+    if pret_str and not _is_clean_price(pret_str):
+        pret_cleaned = normalize_price(pret_str)
+        if pret_cleaned != pret_original:
+            changes['pret'] = {'before': pret_original, 'after': pret_cleaned}
+            issues_found.add('pret_format')
+
     return changes, list(issues_found)
+
+
+def _is_clean_price(value):
+    """Returneaza True daca pretul e deja un float curat."""
+    try:
+        float(value)
+        return True
+    except (ValueError, TypeError):
+        return False

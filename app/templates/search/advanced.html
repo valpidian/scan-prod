@@ -4,17 +4,16 @@
 
 {% block content %}
 
-<div class="card mb-4">
-  <div class="card-body py-3">
-    <form method="get" class="d-flex gap-2">
-      <input type="text" class="form-control" name="q" value="{{ query_text }}"
-             placeholder="Cauta dupa SKU, titlu, descriere, brand..." autofocus>
-      <button class="btn btn-primary btn-pill px-4" type="submit">Cauta</button>
-    </form>
+{% if too_short %}
+  <div class="card">
+    <div class="card-body text-center py-4">
+      <i class="fas fa-keyboard fa-2x text-muted mb-3 d-block"></i>
+      <p class="text-muted mb-0">Termenul <strong>"{{ query_text }}"</strong> este prea scurt.</p>
+      <small class="text-muted">Minim <strong>{{ min_query_length }}</strong> caractere. Configureaza in <a href="{{ url_for('search_config.index') }}">Sensibilitate cautare</a>.</small>
+    </div>
   </div>
-</div>
 
-{% if query_text %}
+{% elif query_text %}
   <div class="d-flex align-items-center justify-content-between mb-3">
     <div>
       <span class="text-muted">Rezultate pentru</span>
@@ -29,12 +28,14 @@
         <table class="table table-hover mb-0">
           <thead class="table-light">
             <tr>
+              <th>ID</th>
               <th>Competitor</th>
               <th>SKU</th>
               <th>Titlu produs</th>
               <th>Brand</th>
               <th class="text-end">Pret</th>
               <th>Descriere</th>
+              <th>Asociere</th>
               <th></th>
             </tr>
           </thead>
@@ -43,6 +44,9 @@
             {% set p = row.product %}
             {% set c = row.competitor %}
             <tr>
+              <td>
+                <code class="bg-light px-1 rounded copy-id" data-id="{{ p.id }}" style="cursor:pointer;" title="Click pentru copiere">#{{ p.id }}</code>
+              </td>
               <td>
                 {% if c %}
                   <span class="badge rounded-pill" style="background:rgba(47,128,237,0.12);color:#1d4ed8;font-size:0.82rem;">
@@ -87,6 +91,25 @@
                   <i class="fas fa-robot"></i> AI
                 </a>
               </td>
+              <td>
+                <div class="d-flex gap-1 align-items-center">
+                  <input type="number" class="form-control form-control-sm assoc-input"
+                         placeholder="ID produs"
+                         data-id="{{ p.id }}"
+                         style="width:90px;"
+                         title="Introdu ID-ul produsului cu care vrei sa asociezi">
+                  <button type="button" class="btn btn-sm btn-soft btn-pill btn-asociaza" data-id="{{ p.id }}">
+                    <i class="fas fa-link"></i>
+                  </button>
+                </div>
+                {% if p.asociere %}
+                  <div class="mt-1">
+                    {% for aid in p.asociere.split(';') if aid %}
+                      <span class="badge bg-success me-1">#{{ aid }}</span>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -103,14 +126,85 @@
     </div>
   {% endif %}
 
-{% else %}
+{% elif not too_short %}
   <div class="card">
     <div class="card-body text-center py-5">
       <i class="fas fa-search fa-2x text-muted mb-3 d-block"></i>
-      <p class="text-muted mb-0">Introdu un termen de cautare</p>
+      <p class="text-muted mb-0">Introdu un termen de cautare in bara de sus</p>
       <small class="text-muted">Cauta dupa SKU, titlu produs, descriere sau brand</small>
     </div>
   </div>
 {% endif %}
+
+<script>
+document.addEventListener('click', function(e) {
+  const el = e.target.closest('.copy-id');
+  if (!el) return;
+  navigator.clipboard.writeText(el.dataset.id).then(() => {
+    const orig = el.textContent;
+    el.textContent = '✓ copiat';
+    el.style.color = '#22c55e';
+    setTimeout(() => { el.textContent = orig; el.style.color = ''; }, 1200);
+  });
+});
+
+document.addEventListener('click', async function(e) {
+  const btn = e.target.closest('.btn-asociaza');
+  if (!btn) return;
+  const pid = btn.dataset.id;
+  const input = document.querySelector(`.assoc-input[data-id="${pid}"]`);
+  const aid = input?.value?.trim();
+  if (!aid) { input.focus(); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+  try {
+    const resp = await fetch('/search/asociaza', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({product_id: pid, asociat_id: aid}),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      btn.innerHTML = '<i class="fas fa-check text-success"></i>';
+      input.value = '';
+      const cell = btn.closest('td');
+      let badgeDiv = cell.querySelector('.assoc-badges');
+      if (!badgeDiv) {
+        badgeDiv = document.createElement('div');
+        badgeDiv.className = 'assoc-badges mt-1';
+        cell.appendChild(badgeDiv);
+      }
+      data.asociere_p.split(';').filter(x => x).forEach(id => {
+        if (!badgeDiv.querySelector(`[data-aid="${id}"]`)) {
+          const b = document.createElement('span');
+          b.className = 'badge bg-success me-1';
+          b.dataset.aid = id;
+          b.textContent = '#' + id;
+          badgeDiv.appendChild(b);
+        }
+      });
+      setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-link"></i>'; }, 1500);
+    } else {
+      alert(data.error || 'Eroare');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-link"></i>';
+    }
+  } catch(err) {
+    alert('Eroare retea: ' + err.message);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-link"></i>';
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter') return;
+  const input = e.target.closest('.assoc-input');
+  if (!input) return;
+  e.preventDefault();
+  document.querySelector(`.btn-asociaza[data-id="${input.dataset.id}"]`)?.click();
+});
+</script>
 
 {% endblock %}

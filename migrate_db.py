@@ -10,58 +10,41 @@ from app import create_app
 from app.extensions import db
 
 
-def add_imported_at_column():
-    """
-    Adaugă coloana imported_at la tabelul competitor_products dacă nu există.
-    """
+COLUMNS_TO_ADD = [
+    ("imported_at", "TIMESTAMP"),
+    ("categorie",   "VARCHAR(120)"),
+    ("pret_preluat", "FLOAT"),
+]
+
+
+def add_missing_columns():
     from sqlalchemy import text
-    
+
     print("Verificare structură database...")
-    
     inspector = db.inspect(db.engine)
     columns = inspector.get_columns('competitor_products')
-    column_names = {col['name'] for col in columns}
-    
-    if 'imported_at' in column_names:
-        print("✓ Coloana 'imported_at' există deja. Nimic de făcut.")
-        return True
-    
-    print("Adăugare coloană 'imported_at'...")
-    
-    try:
-        dialect = db.engine.dialect.name
-        
-        if dialect == 'sqlite':
-            db.session.execute(text('ALTER TABLE competitor_products ADD COLUMN imported_at TIMESTAMP'))
+    existing = {col['name'] for col in columns}
+
+    added = 0
+    for col_name, col_type in COLUMNS_TO_ADD:
+        if col_name in existing:
+            print(f"✓ Coloana '{col_name}' există deja.")
+            continue
+        try:
+            db.session.execute(text(f'ALTER TABLE competitor_products ADD COLUMN {col_name} {col_type}'))
             db.session.commit()
-            print("✓ Coloana adăugată în SQLite")
-        
-        elif dialect == 'mysql':
-            db.session.execute(text(
-                'ALTER TABLE competitor_products ADD COLUMN imported_at TIMESTAMP NULL AFTER updated_at'
-            ))
-            db.session.execute(text(
-                'CREATE INDEX idx_imported_at ON competitor_products(imported_at)'
-            ))
-            db.session.commit()
-            print("✓ Coloana adăugată în MySQL")
-        
-        elif dialect == 'postgresql':
-            db.session.execute(text(
-                'ALTER TABLE competitor_products ADD COLUMN imported_at TIMESTAMP'
-            ))
-            db.session.execute(text(
-                'CREATE INDEX idx_imported_at ON competitor_products(imported_at)'
-            ))
-            db.session.commit()
-            print("✓ Coloana adăugată în PostgreSQL")
-        
-        print("✓ Migrare finalizată cu succes!")
-        return True
-        
-    except Exception as e:
-        print(f"✗ Eroare la migrare: {str(e)}")
-        return False
+            print(f"✓ Coloana '{col_name}' adăugată.")
+            added += 1
+        except Exception as e:
+            print(f"✗ Eroare la '{col_name}': {e}")
+            return False
+
+    print(f"✓ Migrare finalizată — {added} coloane adăugate.")
+    return True
+
+
+def add_imported_at_column():
+    return add_missing_columns()
 
 
 def check_database_health():

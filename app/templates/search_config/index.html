@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}Configurare Cautare | Scan Pret{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <span class="eyebrow">Configurare</span>
+    <h4 class="mb-0">Sensibilitate Cautare & Matching</h4>
+  </div>
+  <a href="{{ url_for('products.list_view') }}" class="btn btn-soft btn-pill btn-sm">Inapoi</a>
+</div>
+
+<form method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="row g-4">
+
+  <!-- Cautare generala -->
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-search me-2 text-primary"></i><strong>Cautare generala</strong></div>
+      <div class="card-body">
+
+        <div class="mb-4">
+          <label class="edit-label">Lungime minima query (caractere)</label>
+          <div class="d-flex align-items-center gap-3">
+            <input type="range" class="form-range" name="min_query_length"
+                   min="1" max="10" value="{{ cfg.min_query_length }}"
+                   oninput="document.getElementById('v-min_query_length').textContent=this.value">
+            <span class="badge bg-primary" id="v-min_query_length" style="min-width:32px;">{{ cfg.min_query_length }}</span>
+          </div>
+          <small class="text-muted">Sub aceasta lungime cautarea nu se declanseaza. Recomandat: 2-3.</small>
+        </div>
+
+        <div class="mb-4">
+          <label class="edit-label">Limita rezultate cautare</label>
+          <div class="d-flex align-items-center gap-3">
+            <input type="range" class="form-range" name="search_limit"
+                   min="10" max="500" step="10" value="{{ cfg.search_limit }}"
+                   oninput="document.getElementById('v-search_limit').textContent=this.value">
+            <span class="badge bg-primary" id="v-search_limit" style="min-width:40px;">{{ cfg.search_limit }}</span>
+          </div>
+          <small class="text-muted">Max rezultate returnate la cautare. Recomandat: 100.</small>
+        </div>
+
+        <div class="mb-4">
+          <label class="edit-label">Lungime minima cuvant din titlu</label>
+          <div class="d-flex align-items-center gap-3">
+            <input type="range" class="form-range" name="title_word_min_length"
+                   min="1" max="8" value="{{ cfg.title_word_min_length }}"
+                   oninput="document.getElementById('v-title_word_min_length').textContent=this.value">
+            <span class="badge bg-primary" id="v-title_word_min_length" style="min-width:32px;">{{ cfg.title_word_min_length }}</span>
+          </div>
+          <small class="text-muted">Cuvintele mai scurte din titlu sunt ignorate la cautarea candidatilor.</small>
+        </div>
+
+        <div class="mb-0">
+          <label class="edit-label">Nr. cuvinte din titlu folosite</label>
+          <div class="d-flex align-items-center gap-3">
+            <input type="range" class="form-range" name="title_word_count"
+                   min="1" max="10" value="{{ cfg.title_word_count }}"
+                   oninput="document.getElementById('v-title_word_count').textContent=this.value">
+            <span class="badge bg-primary" id="v-title_word_count" style="min-width:32px;">{{ cfg.title_word_count }}</span>
+          </div>
+          <small class="text-muted">Primele N cuvinte semnificative din titlu folosite pentru cautarea candidatilor.</small>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Candidati AI -->
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-robot me-2 text-warning"></i><strong>Candidati pentru AI</strong></div>
+      <div class="card-body">
+
+        <div class="mb-4">
+          <label class="edit-label">Limita candidati trimisi la AI</label>
+          <div class="d-flex align-items-center gap-3">
+            <input type="range" class="form-range" name="candidate_limit"
+                   min="5" max="50" value="{{ cfg.candidate_limit }}"
+                   oninput="document.getElementById('v-candidate_limit').textContent=this.value">
+            <span class="badge bg-warning text-dark" id="v-candidate_limit" style="min-width:32px;">{{ cfg.candidate_limit }}</span>
+          </div>
+          <small class="text-muted">Max candidati inclusi in promptul AI. Recomandat: 15-25.</small>
+        </div>
+
+        <div class="mb-4">
+          <label class="edit-label">Multiplicator fetch DB</label>
+          <div class="d-flex align-items-center gap-3">
+            <input type="range" class="form-range" name="candidate_fetch_multiplier"
+                   min="1" max="10" value="{{ cfg.candidate_fetch_multiplier }}"
+                   oninput="document.getElementById('v-candidate_fetch_multiplier').textContent=this.value">
+            <span class="badge bg-warning text-dark" id="v-candidate_fetch_multiplier" style="min-width:32px;">{{ cfg.candidate_fetch_multiplier }}</span>
+          </div>
+          <small class="text-muted">Se fetch-uiesc <code>candidati × multiplicator</code> din DB, apoi se re-rankeaza. Recomandat: 3.</small>
+        </div>
+
+        <div class="mb-4">
+          <label class="edit-label">Scor minim candidat (filtru)</label>
+          <div class="d-flex align-items-center gap-3">
+            <input type="range" class="form-range" name="min_score_filter"
+                   min="0" max="0.9" step="0.05" value="{{ cfg.min_score_filter }}"
+                   oninput="document.getElementById('v-min_score_filter').textContent=Math.round(this.value*100)+'%'">
+            <span class="badge bg-warning text-dark" id="v-min_score_filter" style="min-width:40px;">{{ (cfg.min_score_filter * 100)|int }}%</span>
+          </div>
+          <small class="text-muted">Candidatii sub acest scor sunt exclusi. 0% = toti candidatii.</small>
+        </div>
+
+        <div class="mb-0">
+          <label class="edit-label">Confidence minim AI (sub care returneaza gol)</label>
+          <div class="d-flex align-items-center gap-3">
+            <input type="range" class="form-range" name="ai_min_confidence"
+                   min="0" max="1" step="0.05" value="{{ cfg.ai_min_confidence }}"
+                   oninput="document.getElementById('v-ai_min_confidence').textContent=Math.round(this.value*100)+'%'">
+            <span class="badge bg-warning text-dark" id="v-ai_min_confidence" style="min-width:40px;">{{ (cfg.ai_min_confidence * 100)|int }}%</span>
+          </div>
+          <small class="text-muted">AI-ul este instruit sa returneze lista goala sub acest prag. Recomandat: 60%.</small>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Scoruri matching -->
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-sliders-h me-2 text-success"></i><strong>Scoruri matching regex</strong></div>
+      <div class="card-body">
+        <div class="row g-4">
+
+          <div class="col-md-4">
+            <label class="edit-label">Scor SKU exact</label>
+            <div class="d-flex align-items-center gap-3">
+              <input type="range" class="form-range" name="sku_exact_score"
+                     min="0.5" max="1" step="0.05" value="{{ cfg.sku_exact_score }}"
+                     oninput="document.getElementById('v-sku_exact_score').textContent=Math.round(this.value*100)+'%'">
+              <span class="badge bg-success" id="v-sku_exact_score" style="min-width:40px;">{{ (cfg.sku_exact_score * 100)|int }}%</span>
+            </div>
+            <small class="text-muted">SKU normalizat identic.</small>
+          </div>
+
+          <div class="col-md-4">
+            <label class="edit-label">Scor SKU partial</label>
+            <div class="d-flex align-items-center gap-3">
+              <input type="range" class="form-range" name="sku_partial_score"
+                     min="0.3" max="1" step="0.05" value="{{ cfg.sku_partial_score }}"
+                     oninput="document.getElementById('v-sku_partial_score').textContent=Math.round(this.value*100)+'%'">
+              <span class="badge bg-success" id="v-sku_partial_score" style="min-width:40px;">{{ (cfg.sku_partial_score * 100)|int }}%</span>
+            </div>
+            <small class="text-muted">Un SKU continut in celalalt.</small>
+          </div>
+
+          <div class="col-md-4">
+            <label class="edit-label">Scor model tehnic comun</label>
+            <div class="d-flex align-items-center gap-3">
+              <input type="range" class="form-range" name="model_match_score"
+                     min="0.3" max="1" step="0.05" value="{{ cfg.model_match_score }}"
+                     oninput="document.getElementById('v-model_match_score').textContent=Math.round(this.value*100)+'%'">
+              <span class="badge bg-success" id="v-model_match_score" style="min-width:40px;">{{ (cfg.model_match_score * 100)|int }}%</span>
+            </div>
+            <small class="text-muted">Model extras din SKU/titlu gasit la ambele.</small>
+          </div>
+
+          <div class="col-md-4">
+            <label class="edit-label">Prag potrivire sigura</label>
+            <div class="d-flex align-items-center gap-3">
+              <input type="range" class="form-range" name="sure_match_threshold"
+                     min="0.5" max="1" step="0.05" value="{{ cfg.sure_match_threshold }}"
+                     oninput="document.getElementById('v-sure_match_threshold').textContent=Math.round(this.value*100)+'%'">
+              <span class="badge bg-success" id="v-sure_match_threshold" style="min-width:40px;">{{ (cfg.sure_match_threshold * 100)|int }}%</span>
+            </div>
+            <small class="text-muted">Peste acest prag potrivirea e considerata sigura (verde).</small>
+          </div>
+
+          <div class="col-md-4">
+            <label class="edit-label">Bonus brand identic</label>
+            <div class="d-flex align-items-center gap-3">
+              <input type="range" class="form-range" name="brand_bonus"
+                     min="0" max="0.3" step="0.05" value="{{ cfg.brand_bonus }}"
+                     oninput="document.getElementById('v-brand_bonus').textContent='+'+Math.round(this.value*100)+'%'">
+              <span class="badge bg-secondary" id="v-brand_bonus" style="min-width:40px;">+{{ (cfg.brand_bonus * 100)|int }}%</span>
+            </div>
+            <small class="text-muted">Adaugat la scor cand brand-ul e identic.</small>
+          </div>
+
+          <div class="col-md-4">
+            <label class="edit-label">Bonus categorie identica</label>
+            <div class="d-flex align-items-center gap-3">
+              <input type="range" class="form-range" name="category_bonus"
+                     min="0" max="0.2" step="0.05" value="{{ cfg.category_bonus }}"
+                     oninput="document.getElementById('v-category_bonus').textContent='+'+Math.round(this.value*100)+'%'">
+              <span class="badge bg-secondary" id="v-category_bonus" style="min-width:40px;">+{{ (cfg.category_bonus * 100)|int }}%</span>
+            </div>
+            <small class="text-muted">Adaugat la scor cand categoria e identica.</small>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="d-flex gap-2 mt-4">
+  <button type="submit" class="btn btn-primary btn-pill">
+    <i class="fas fa-save me-1"></i> Salveaza configurarea
+  </button>
+  <a href="{{ url_for('search_config.index') }}" class="btn btn-soft btn-pill">Reset la valorile salvate</a>
+</div>
+</form>
+
+<style>
+.edit-label { display:block; font-size:0.72rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px; }
+</style>
+{% endblock %}

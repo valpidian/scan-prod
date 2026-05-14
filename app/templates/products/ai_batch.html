@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% block title %}Procesare AI in masa | Scan Pret{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <span class="eyebrow">AI Batch</span>
+    <h4 class="mb-0">Procesare AI in masa</h4>
+  </div>
+  <a href="{{ url_for('products.list_view') }}" class="btn btn-soft btn-pill btn-sm">
+    <i class="fas fa-arrow-left"></i> Inapoi
+  </a>
+</div>
+
+<div class="row g-4">
+
+  <!-- Stanga: Configurare -->
+  <div class="col-lg-4">
+
+    <!-- Setari executie -->
+    <div class="card mb-4">
+      <div class="card-header"><i class="fas fa-sliders-h me-2"></i><strong>Setari executie</strong></div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="edit-label">Concurenta (prompturi simultane)</label>
+          <div class="d-flex align-items-center gap-2">
+            <input type="range" class="form-range" id="concurrency" min="1" max="10" value="3" style="flex:1;">
+            <span id="concurrency-val" class="badge bg-primary" style="min-width:28px;">3</span>
+          </div>
+          <small class="text-muted">Recomandat: 3-5. Peste 10 risc de rate limit.</small>
+        </div>
+        <div class="mb-3">
+          <label class="edit-label">Delay intre requesturi (ms)</label>
+          <input type="number" class="form-control form-control-sm" id="delay-ms" value="500" min="0" max="5000" step="100">
+        </div>
+        <div class="mb-0">
+          <label class="edit-label">Prompt custom (optional)</label>
+          <textarea class="form-control form-control-sm font-monospace" id="custom-prompt" rows="4"
+                    placeholder="Lasa gol pentru promptul din configurare AI..."></textarea>
+          <small class="text-muted">Variabile: {sku} {title} {brand} {descriere} {candidates}</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Produse in coada -->
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-list me-2"></i><strong>Coada</strong></span>
+        <span class="badge bg-secondary">{{ products|length }}</span>
+      </div>
+      <div class="card-body p-0" style="max-height:300px;overflow-y:auto;">
+        <table class="table table-sm mb-0">
+          <tbody id="queue-list">
+            {% for p in products %}
+            <tr id="queue-row-{{ p.id }}">
+              <td style="width:30px;"><span class="queue-status" id="qstatus-{{ p.id }}">⏳</span></td>
+              <td><code class="small">{{ p.sku }}</code></td>
+              <td><small>{{ p.title[:40] }}{% if p.title|length > 40 %}...{% endif %}</small></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Dreapta: Control + Rezultate -->
+  <div class="col-lg-8">
+
+    <!-- Control -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <button class="btn btn-primary btn-pill" id="btn-start">
+            <i class="fas fa-play me-1"></i> Porneste procesarea
+          </button>
+          <button class="btn btn-soft btn-pill" id="btn-pause" disabled>
+            <i class="fas fa-pause me-1"></i> Pauza
+          </button>
+          <button class="btn btn-soft btn-pill" id="btn-stop" disabled>
+            <i class="fas fa-stop me-1"></i> Stop
+          </button>
+          <button class="btn btn-success btn-pill" id="btn-confirm-all" disabled>
+            <i class="fas fa-check me-1"></i> Confirma si salveaza toate
+          </button>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="mt-3">
+          <div class="d-flex justify-content-between mb-1">
+            <small id="progress-text" class="text-muted">In asteptare...</small>
+            <small id="progress-stats" class="text-muted"></small>
+          </div>
+          <div class="progress" style="height:8px;">
+            <div class="progress-bar" id="progress-bar" role="progressbar" style="width:0%;transition:width 0.3s;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rezultate -->
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-brain me-2"></i><strong>Rezultate AI</strong></span>
+        <div class="d-flex gap-2">
+          <span class="badge bg-success" id="badge-ok">0 potriviri</span>
+          <span class="badge bg-warning text-dark" id="badge-none">0 fara potrivire</span>
+          <span class="badge bg-danger" id="badge-err">0 erori</span>
+        </div>
+      </div>
+      <div class="card-body p-0" style="max-height:500px;overflow-y:auto;">
+        <table class="table table-sm mb-0" id="results-table">
+          <thead class="table-light sticky-top">
+            <tr>
+              <th style="width:30px;"><input type="checkbox" class="form-check-input" id="check-all-results"></th>
+              <th>Produs</th>
+              <th>Rezultat AI</th>
+              <th>Confidence</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="results-body">
+            <tr><td colspan="5" class="text-center text-muted py-3">Porneste procesarea pentru a vedea rezultatele.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+.edit-label { display:block; font-size:0.72rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; }
+.result-row-ok { background:rgba(25,135,84,0.05); }
+.result-row-none { background:rgba(255,193,7,0.05); }
+.result-row-err { background:rgba(220,53,69,0.05); }
+</style>
+
+<script>
+const PRODUCT_IDS = {{ ids | tojson }};
+const TOTAL = PRODUCT_IDS.length;
+
+let queue = [...PRODUCT_IDS];
+let running = false;
+let paused = false;
+let stopped = false;
+let doneCount = 0;
+let okCount = 0;
+let noneCount = 0;
+let errCount = 0;
+const allResults = [];  // {product_id, matched_ids, confirmed}
+
+// Concurenta slider
+const concurrencyEl = document.getElementById('concurrency');
+const concurrencyVal = document.getElementById('concurrency-val');
+concurrencyEl.addEventListener('input', () => concurrencyVal.textContent = concurrencyEl.value);
+
+// Check all results
+document.getElementById('check-all-results').addEventListener('change', function() {
+  document.querySelectorAll('.result-check').forEach(cb => cb.checked = this.checked);
+});
+
+// ── Butoane ───────────────────────────────────────────────
+document.getElementById('btn-start').addEventListener('click', startProcessing);
+document.getElementById('btn-pause').addEventListener('click', function() {
+  paused = !paused;
+  this.innerHTML = paused
+    ? '<i class="fas fa-play me-1"></i> Continua'
+    : '<i class="fas fa-pause me-1"></i> Pauza';
+});
+document.getElementById('btn-stop').addEventListener('click', function() {
+  stopped = true;
+  running = false;
+  setProgress('Oprit.', 'secondary');
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-pause').disabled = true;
+  this.disabled = true;
+});
+document.getElementById('btn-confirm-all').addEventListener('click', confirmAll);
+
+// ── Procesare ─────────────────────────────────────────────
+async function startProcessing() {
+  if (running) return;
+  running = true; paused = false; stopped = false;
+  doneCount = 0; okCount = 0; noneCount = 0; errCount = 0;
+  queue = [...PRODUCT_IDS];
+  allResults.length = 0;
+
+  document.getElementById('results-body').innerHTML = '';
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-pause').disabled = false;
+  document.getElementById('btn-stop').disabled = false;
+  document.getElementById('btn-confirm-all').disabled = true;
+  updateBadges();
+  setProgress('Se proceseaza...', 'primary');
+
+  const concurrency = parseInt(concurrencyEl.value);
+  const delay = parseInt(document.getElementById('delay-ms').value) || 0;
+  const customPrompt = document.getElementById('custom-prompt').value.trim();
+
+  // Ruleaza N workeri in paralel
+  const workers = Array.from({length: concurrency}, () => worker(delay, customPrompt));
+  await Promise.all(workers);
+
+  running = false;
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-pause').disabled = true;
+  document.getElementById('btn-stop').disabled = true;
+  document.getElementById('btn-confirm-all').disabled = false;
+  setProgress(`Finalizat: ${okCount} potriviri, ${noneCount} fara potrivire, ${errCount} erori.`, okCount > 0 ? 'success' : 'secondary');
+}
+
+async function worker(delay, customPrompt) {
+  while (true) {
+    if (stopped) break;
+    while (paused) await sleep(300);
+    if (stopped) break;
+
+    const id = queue.shift();
+    if (id === undefined) break;
+
+    setQueueStatus(id, '🔄');
+    try {
+      const resp = await fetch('/products/ai-batch/run', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({product_id: id, prompt: customPrompt || null}),
+      });
+      const data = await resp.json();
+      addResult(data);
+    } catch(err) {
+      addResult({product_id: id, error: err.message, matched_ids: [], confidence: 0});
+    }
+
+    doneCount++;
+    updateProgress();
+    if (delay > 0) await sleep(delay);
+  }
+}
+
+function addResult(data) {
+  const id = data.product_id;
+  const hasMatch = data.matched_ids && data.matched_ids.length > 0;
+  const isErr = !!data.error;
+
+  if (isErr) { errCount++; setQueueStatus(id, '❌'); }
+  else if (hasMatch) { okCount++; setQueueStatus(id, '✅'); }
+  else { noneCount++; setQueueStatus(id, '⚪'); }
+
+  allResults.push({product_id: id, matched_ids: data.matched_ids || [], confirmed: false});
+  updateBadges();
+
+  const confidence = data.confidence ? Math.round(data.confidence * 100) : 0;
+  const confColor = confidence >= 80 ? 'success' : confidence >= 50 ? 'warning' : 'secondary';
+  const rowClass = isErr ? 'result-row-err' : hasMatch ? 'result-row-ok' : 'result-row-none';
+
+  const tr = document.createElement('tr');
+  tr.id = `result-row-${id}`;
+  tr.className = rowClass;
+  tr.innerHTML = `
+    <td>${hasMatch ? `<input type="checkbox" class="form-check-input result-check" data-id="${id}" checked>` : ''}</td>
+    <td>
+      <code class="small">#${id}</code>
+      <small class="d-block text-muted">${escHtml(data.title || '')}</small>
+    </td>
+    <td>
+      ${isErr
+        ? `<span class="text-danger small">${escHtml(data.error)}</span>`
+        : hasMatch
+          ? data.matched_ids.map(mid => `<span class="badge bg-success me-1">#${mid}</span>`).join('')
+          : '<span class="text-muted small">Fara potrivire</span>'
+      }
+      ${data.reason ? `<small class="d-block text-muted mt-1">${escHtml(data.reason)}</small>` : ''}
+    </td>
+    <td>${hasMatch ? `<span class="badge bg-${confColor}">${confidence}%</span>` : '—'}</td>
+    <td id="save-status-${id}"><span class="text-muted small">neconfirmat</span></td>
+  `;
+  document.getElementById('results-body').appendChild(tr);
+  tr.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+async function confirmAll() {
+  const checked = [...document.querySelectorAll('.result-check:checked')].map(cb => parseInt(cb.dataset.id));
+  if (!checked.length) { alert('Niciun rezultat selectat.'); return; }
+
+  const toSave = allResults.filter(r => checked.includes(r.product_id) && r.matched_ids.length > 0);
+  if (!toSave.length) return;
+
+  const btn = document.getElementById('btn-confirm-all');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Se salveaza...';
+
+  const resp = await fetch('/products/ai-batch/confirm', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({results: toSave}),
+  });
+  const data = await resp.json();
+
+  if (data.ok) {
+    toSave.forEach(r => {
+      const el = document.getElementById(`save-status-${r.product_id}`);
+      if (el) el.innerHTML = '<span class="text-success"><i class="fas fa-check-circle"></i> Salvat</span>';
+    });
+    btn.innerHTML = `<i class="fas fa-check me-1"></i> ${data.saved} salvate`;
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────
+function setQueueStatus(id, icon) {
+  const el = document.getElementById(`qstatus-${id}`);
+  if (el) el.textContent = icon;
+}
+
+function updateProgress() {
+  const pct = TOTAL > 0 ? Math.round(doneCount / TOTAL * 100) : 0;
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-stats').textContent = `${doneCount}/${TOTAL}`;
+}
+
+function setProgress(text, color) {
+  document.getElementById('progress-text').textContent = text;
+  const bar = document.getElementById('progress-bar');
+  bar.className = `progress-bar bg-${color}`;
+}
+
+function updateBadges() {
+  document.getElementById('badge-ok').textContent = `${okCount} potriviri`;
+  document.getElementById('badge-none').textContent = `${noneCount} fara potrivire`;
+  document.getElementById('badge-err').textContent = `${errCount} erori`;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function escHtml(t) { return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+
+{% endblock %}

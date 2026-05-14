@@ -17,7 +17,8 @@
         class="form-control"
         name="q"
         value="{{ request.args.get('q', '') }}"
-        placeholder="SKU, title, brand sau descriere"
+        placeholder="SKU, titlu, brand, descriere..."
+        {% if request.endpoint == 'search.advanced' %}autofocus{% endif %}
       >
       <button class="btn btn-primary btn-pill" type="submit">Cauta</button>
     </div>

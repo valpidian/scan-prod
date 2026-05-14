@@ -63,6 +63,7 @@ def register_blueprints(app):
     from app.routes.notifications import bp as notifications_bp
     from app.routes.products import bp as products_bp
     from app.routes.search import bp as search_bp
+    from app.routes.search_config import bp as search_config_bp
 
     app.register_blueprint(competitors_bp, url_prefix="/competitors")
     app.register_blueprint(cleanup_bp, url_prefix="/cleanup")
@@ -70,6 +71,7 @@ def register_blueprints(app):
     app.register_blueprint(import_export_bp, url_prefix="/io")
     app.register_blueprint(products_bp, url_prefix="/products")
     app.register_blueprint(search_bp, url_prefix="/search")
+    app.register_blueprint(search_config_bp, url_prefix="/search-config")
     app.register_blueprint(ai_bp, url_prefix="/ai")
     app.register_blueprint(notifications_bp, url_prefix="/notifications")
 

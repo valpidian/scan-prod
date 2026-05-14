@@ -2,7 +2,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 
 from app.models.competitor import Competitor
 from app.services.competitor_service import create_or_get_competitor
-from app.services.notification_service import create_notification, recent_notifications, unread_notifications
+from app.services.notification_service import create_notification
 
 
 bp = Blueprint("competitors", __name__)
@@ -24,24 +24,13 @@ def index():
                     f"{competitor.internal_code} a fost generat pentru {competitor.display_name}.",
                     "success",
                 )
-                flash(
-                    f"Competitor creat: {competitor.internal_code} pentru {competitor.display_name}.",
-                    "success",
-                )
+                flash(f"Competitor creat: {competitor.internal_code} pentru {competitor.display_name}.", "success")
             else:
-                flash(
-                    f"Competitor existent: {competitor.internal_code} pentru {competitor.display_name}.",
-                    "info",
-                )
+                flash(f"Competitor existent: {competitor.internal_code} pentru {competitor.display_name}.", "info")
         except Exception as exc:
             current_app.logger.exception("Create competitor failed")
             flash(str(exc), "danger")
         return redirect(url_for("competitors.index"))
 
     competitors = Competitor.query.order_by(Competitor.internal_code.asc()).all()
-    return render_template(
-        "competitors/index.html",
-        competitors=competitors,
-        unread_notifications=unread_notifications(),
-        recent_notifications=recent_notifications(),
-    )
+    return render_template("competitors/index.html", competitors=competitors)

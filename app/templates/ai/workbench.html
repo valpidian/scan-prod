@@ -129,9 +129,25 @@
                   {% endif %}
                 </td>
                 <td>
+                  {% if row.match_score is defined and row.match_score > 0 %}
+                    {% set pct = (row.match_score * 100)|int %}
+                    {% set color = 'success' if pct >= 85 else 'warning' if pct >= 50 else 'secondary' %}
+                    <span class="badge bg-{{ color }}">{{ pct }}%</span>
+                  {% endif %}
                   <div class="match-indicator" id="match-{{ c.id }}" style="display:none;">
                     <i class="fas fa-check-circle text-success"></i>
                   </div>
+                  {% set asocieri = source.asociere.split(';') if source.asociere else [] %}
+                  {% if c.id|string in asocieri and c.pret %}
+                    <button type="button"
+                            class="btn btn-xs btn-soft btn-pill btn-pret-preluat mt-1"
+                            data-source="{{ source.id }}"
+                            data-asociat="{{ c.id }}"
+                            data-pret="{{ c.pret }}"
+                            title="Preia pret {{ '%.2f'|format(c.pret) }} lei">
+                      <i class="fas fa-tag"></i> Preia pret
+                    </button>
+                  {% endif %}
                 </td>
               </tr>
               {% endfor %}
@@ -361,6 +377,31 @@ function showResult(data) {
 function escapeHtml(text) {
   return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
+document.addEventListener('click', async function(e) {
+  const btn = e.target.closest('.btn-pret-preluat');
+  if (!btn) return;
+  const sourceId = btn.dataset.source;
+  const asociatId = btn.dataset.asociat;
+  const pret = btn.dataset.pret;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const resp = await fetch(`/ai/associate/${sourceId}/pret/${asociatId}`, { method: 'POST' });
+    const data = await resp.json();
+    if (data.ok) {
+      btn.innerHTML = '<i class="fas fa-check text-success"></i> ' + parseFloat(pret).toFixed(2) + ' lei';
+      btn.classList.add('btn-success');
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-tag"></i> Preia pret';
+      alert(data.error || 'Eroare');
+    }
+  } catch(err) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-tag"></i> Preia pret';
+  }
+});
 </script>
 
 {% endblock %}

@@ -1,69 +1,85 @@
 {% set current_endpoint = request.endpoint or '' %}
 <div class="sidebar-panel">
-  <section class="sidebar-flow">
-    <div class="sidebar-section-head">
-      <span class="eyebrow">Fluxul aplicatiei</span>
-      <strong>Ordinea de lucru</strong>
-    </div>
 
-    <div class="workflow-sidebar">
-      {% for step in workflow_steps %}
-        {% if step.url %}
-          <a class="workflow-step-card {% if current_endpoint in step.endpoints %}is-active{% endif %}" href="{{ step.url }}">
-        {% else %}
-          <div class="workflow-step-card workflow-step-static">
-        {% endif %}
-            <span class="workflow-step-number">{{ step.number }}</span>
-            <div class="workflow-step-body">
-              <strong>{{ step.title }}</strong>
-              <small>{{ step.subtitle }}</small>
-              {% if step.note %}
-                <span class="workflow-step-note">{{ step.note }}</span>
-              {% endif %}
-            </div>
-        {% if step.url %}
-          </a>
-        {% else %}
-          </div>
-        {% endif %}
-      {% endfor %}
-    </div>
-  </section>
-
+  <!-- Ordinea de lucru -->
   <section class="sidebar-card">
-    <div class="sidebar-card-head">
-      <h2 class="h6 mb-0">Competitori</h2>
-      <a class="small" href="{{ url_for('competitors.index') }}">Adauga URL</a>
+    <div class="sidebar-collapse-head" onclick="toggleSection('workflow')">
+      <div class="sidebar-section-head">
+        <span class="eyebrow">Fluxul aplicatiei</span>
+        <strong>Ordinea de lucru</strong>
+      </div>
+      <i class="fas fa-chevron-down sidebar-chevron" id="chevron-workflow"></i>
     </div>
-
-    <a class="sidebar-cta" href="{{ url_for('competitors.index') }}">
-      Adauga un competitor nou
-    </a>
-
-    {% if sidebar_competitors %}
-      <div class="competitor-list">
-        {% for competitor in sidebar_competitors[:5] %}
-          <a class="competitor-item" href="{{ url_for('competitors.index') }}">
-            <span>{{ competitor.internal_code }}</span>
-            <small>{{ competitor.display_name }}</small>
-          </a>
+    <div class="sidebar-collapse-body" id="section-workflow">
+      <div class="workflow-sidebar mt-2">
+        {% for step in workflow_steps %}
+          {% if step.url %}
+            <a class="workflow-step-card {% if current_endpoint in step.endpoints %}is-active{% endif %}" href="{{ step.url }}">
+          {% else %}
+            <div class="workflow-step-card workflow-step-static">
+          {% endif %}
+              <span class="workflow-step-number">{{ step.number }}</span>
+              <div class="workflow-step-body">
+                <strong>{{ step.title }}</strong>
+                <small>{{ step.subtitle }}</small>
+              </div>
+          {% if step.url %}
+            </a>
+          {% else %}
+            </div>
+          {% endif %}
         {% endfor %}
       </div>
-    {% else %}
-      <p class="text-muted small mb-0">
-        Nu exista competitori inca. Adauga primul URL din sectiunea dedicata.
-      </p>
-    {% endif %}
-  </section>
-
-  <section class="sidebar-card">
-    <div class="sidebar-card-head">
-      <h2 class="h6 mb-0">Notificari recente</h2>
-      <a class="small" href="{{ url_for('notifications.list_view') }}">Toate</a>
     </div>
-    {% include "partials/notifications.html" %}
   </section>
 
+  <!-- Competitori -->
+  <section class="sidebar-card">
+    <div class="sidebar-collapse-head" onclick="toggleSection('competitors')">
+      <h2 class="h6 mb-0">Competitori</h2>
+      <i class="fas fa-chevron-down sidebar-chevron" id="chevron-competitors"></i>
+    </div>
+    <div class="sidebar-collapse-body" id="section-competitors">
+      <a class="sidebar-cta mt-2" href="{{ url_for('competitors.index') }}">
+        Adauga un competitor nou
+      </a>
+      {% if sidebar_competitors %}
+        <div class="competitor-list mt-2">
+          {% for competitor in sidebar_competitors[:5] %}
+            <a class="competitor-item" href="{{ url_for('competitors.index') }}">
+              <span>{{ competitor.internal_code }}</span>
+              <small>{{ competitor.display_name }}</small>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-muted small mb-0 mt-2">Nu exista competitori inca.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- Notificari -->
+  <section class="sidebar-card">
+    <div class="sidebar-collapse-head" onclick="toggleSection('notifications')">
+      <h2 class="h6 mb-0">
+        Notificari recente
+        {% if unread_notifications %}
+          <span class="badge bg-danger ms-1" style="font-size:0.65rem;">{{ unread_notifications }}</span>
+        {% endif %}
+      </h2>
+      <i class="fas fa-chevron-down sidebar-chevron" id="chevron-notifications"></i>
+    </div>
+    <div class="sidebar-collapse-body" id="section-notifications">
+      <div class="mt-2">
+        {% include "partials/notifications.html" %}
+      </div>
+      <a class="small d-block mt-2" href="{{ url_for('notifications.list_view') }}" style="color:rgba(238,244,255,0.7);">
+        Vezi toate &rarr;
+      </a>
+    </div>
+  </section>
+
+  <!-- Footer -->
   <section class="sidebar-footer-card">
     <div class="small text-uppercase">Stare sistem</div>
     <strong>Local sync activ</strong>
@@ -71,5 +87,81 @@
     <a href="{{ url_for('ai_association.config') }}" class="btn btn-soft btn-pill w-100 mt-3" style="font-size:0.85rem;">
       <i class="fas fa-cog"></i> Configurare AI
     </a>
+    <a href="{{ url_for('search_config.index') }}" class="btn btn-soft btn-pill w-100 mt-2" style="font-size:0.85rem;">
+      <i class="fas fa-sliders-h"></i> Sensibilitate cautare
+    </a>
   </section>
+
 </div>
+
+<style>
+.sidebar-collapse-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 0;
+}
+.sidebar-collapse-head:hover .sidebar-chevron {
+  color: rgba(238,244,255,0.9);
+}
+.sidebar-chevron {
+  font-size: 0.75rem;
+  color: rgba(238,244,255,0.45);
+  transition: transform 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+}
+.sidebar-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+.sidebar-collapse-body {
+  overflow: hidden;
+  transition: max-height 0.25s ease, opacity 0.2s ease;
+  max-height: 600px;
+  opacity: 1;
+}
+.sidebar-collapse-body.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+</style>
+
+<script>
+const SIDEBAR_STATE_KEY = 'sidebar_sections';
+
+function getSavedState() {
+  try { return JSON.parse(localStorage.getItem(SIDEBAR_STATE_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function saveState(state) {
+  localStorage.setItem(SIDEBAR_STATE_KEY, JSON.stringify(state));
+}
+
+function toggleSection(id) {
+  const body = document.getElementById(`section-${id}`);
+  const chevron = document.getElementById(`chevron-${id}`);
+  const isCollapsed = body.classList.contains('collapsed');
+
+  body.classList.toggle('collapsed', !isCollapsed);
+  chevron.classList.toggle('collapsed', !isCollapsed);
+
+  const state = getSavedState();
+  state[id] = !isCollapsed ? 'collapsed' : 'open';
+  saveState(state);
+}
+
+// Restaureaza starea la incarcare
+document.addEventListener('DOMContentLoaded', function() {
+  const state = getSavedState();
+  ['workflow', 'competitors', 'notifications'].forEach(id => {
+    if (state[id] === 'collapsed') {
+      const body = document.getElementById(`section-${id}`);
+      const chevron = document.getElementById(`chevron-${id}`);
+      if (body) body.classList.add('collapsed');
+      if (chevron) chevron.classList.add('collapsed');
+    }
+  });
+});
+</script>

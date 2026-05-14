@@ -13,7 +13,7 @@ def index():
     products = CompetitorProduct.query.all()
 
     dirty = []
-    stats = {'html': 0, 'url': 0, 'filepath': 0, 'entity': 0, 'total_dirty': 0}
+    stats = {'html': 0, 'url': 0, 'filepath': 0, 'entity': 0, 'pret_format': 0, 'total_dirty': 0}
 
     for p in products:
         changes, issues = clean_product(p)

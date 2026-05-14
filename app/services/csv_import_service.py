@@ -11,10 +11,11 @@ from app.utils.helpers import normalize_text, safe_filename
 from app.utils.normalizers import normalize_price
 
 
-EXPECTED_COLUMNS = {"sku", "title", "pret", "brand", "descriere"}
+EXPECTED_COLUMNS = {"sku", "title", "pret"}
+OPTIONAL_COLUMNS = {"brand", "descriere", "categorie"}
 
 
-def import_csv(file_storage, competitor_code, upload_folder, mapping=None):
+def import_csv(file_storage, competitor_code, upload_folder, mapping=None, default_categorie=None):
     """
     Importa CSV cu maparea coloanelor specificata.
     
@@ -62,17 +63,21 @@ def import_csv(file_storage, competitor_code, upload_folder, mapping=None):
                 pret_col = reversed_mapping.get("pret", "pret")
                 brand_col = reversed_mapping.get("brand", "brand")
                 descriere_col = reversed_mapping.get("descriere", "descriere")
-                
+                categorie_col = reversed_mapping.get("categorie")
+
                 sku = row.get(sku_col, "").strip()
                 title = row.get(title_col, "").strip()
                 pret = row.get(pret_col, "").strip()
                 brand = row.get(brand_col, "").strip()
                 descriere = row.get(descriere_col, "").strip()
-                
-                # Verifica daca cel putin SKU si title nu sunt goale
+                categorie = (
+                    row.get(categorie_col, "").strip() if categorie_col
+                    else default_categorie or ""
+                )
+
                 if not sku or not title:
                     continue
-                
+
                 product = CompetitorProduct(
                     cod_competitor=competitor_code,
                     sku=normalize_text(sku),
@@ -80,6 +85,7 @@ def import_csv(file_storage, competitor_code, upload_folder, mapping=None):
                     pret=normalize_price(pret) if pret else None,
                     brand=normalize_text(brand) if brand else None,
                     descriere=normalize_text(descriere) if descriere else None,
+                    categorie=normalize_text(categorie) if categorie else None,
                     asociere="",
                     imported_at=import_timestamp,
                 )

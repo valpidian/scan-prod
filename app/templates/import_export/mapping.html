@@ -77,9 +77,7 @@
           <ul class="mb-0 mt-2">
             <li>SKU / Cod produs</li>
             <li>Titlu produs</li>
-            <li>Preț</li>
-            <li>Brand / Producător</li>
-            <li>Descriere</li>
+            <li>Pret</li>
           </ul>
         </div>
       </div>
@@ -134,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const confirmBtn = document.getElementById('confirm-btn');
   const validationMsg = document.getElementById('validation-message');
   
-  const requiredFields = ['sku', 'title', 'pret', 'brand', 'descriere'];
+  const requiredFields = ['sku', 'title', 'pret'];
   
   function validateMapping() {
     const mappedValues = new Set();

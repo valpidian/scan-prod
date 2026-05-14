@@ -34,6 +34,12 @@
           <span class="ms-2">Se analizeaza...</span>
         </div>
       </div>
+      <div class="mb-3">
+        <label class="form-label">Categorie implicita <span class="text-muted">(optionala)</span></label>
+        <input type="text" id="default_categorie" class="form-control" style="max-width:400px;"
+               placeholder="ex: HVAC, Electronice, Electrocasnice...">
+        <small class="text-muted">Aplicata tuturor produselor daca CSV-ul nu are coloana de categorie.</small>
+      </div>
     </div>
 
     <!-- PASUL 2: Mapare (ascuns initial) -->
@@ -62,6 +68,7 @@
     <!-- Formular ascuns pentru submit -->
     <form id="import-form" method="post" enctype="multipart/form-data" class="d-none">
       <input type="hidden" id="form-competitor" name="competitor_code">
+      <input type="hidden" id="form-categorie" name="default_categorie">
       <input type="hidden" id="form-filename" name="session_file">
       <div id="mapping-inputs"></div>
     </form>
@@ -74,8 +81,9 @@ const FIELDS = {
   'sku':       { label: 'SKU / Cod produs',  required: true },
   'title':     { label: 'Titlu produs',       required: true },
   'pret':      { label: 'Pret',               required: true },
-  'brand':     { label: 'Brand / Producator', required: true },
-  'descriere': { label: 'Descriere',          required: true },
+  'brand':     { label: 'Brand / Producator', required: false },
+  'descriere': { label: 'Descriere',          required: false },
+  'categorie': { label: 'Categorie',          required: false },
 };
 
 const KEYWORDS = {
@@ -84,6 +92,7 @@ const KEYWORDS = {
   'pret':      ['pret','price','cost'],
   'brand':     ['brand','marca','manufacturer','producator'],
   'descriere': ['descriere','description','details'],
+  'categorie': ['categorie','category','cat','tip','type'],
 };
 
 let csvColumns = [];
@@ -195,6 +204,7 @@ document.getElementById('btn-confirm').addEventListener('click', function() {
   if (!competitorCode) { alert('Alege un competitor!'); return; }
 
   document.getElementById('form-competitor').value = competitorCode;
+  document.getElementById('form-categorie').value = document.getElementById('default_categorie').value;
 
   const inputs = document.getElementById('mapping-inputs');
   inputs.innerHTML = '';
@@ -207,6 +217,13 @@ document.getElementById('btn-confirm').addEventListener('click', function() {
       inputs.appendChild(inp);
     }
   });
+
+  // Adauga csrf token
+  const csrfInput = document.createElement('input');
+  csrfInput.type = 'hidden';
+  csrfInput.name = 'csrf_token';
+  csrfInput.value = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  document.getElementById('import-form').appendChild(csrfInput);
 
   // Adauga fisierul in formular si trimite
   const dt = new DataTransfer();

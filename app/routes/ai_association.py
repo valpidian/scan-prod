@@ -5,7 +5,7 @@ from app.extensions import db
 from app.models.ai_config import AIConfig
 from app.models.competitor import Competitor
 from app.models.competitor_product import CompetitorProduct
-from app.services.association_service import find_candidates
+from app.services.association_service import find_candidates, sync_pret_preluat
 from app.services.ai_service import build_prompt, call_ai, parse_ai_response
 from app.services.notification_service import create_notification
 from app.utils.logging_helpers import audit
@@ -79,6 +79,7 @@ def associate_confirm(product_id):
             current.append(mid)
 
     source.asociere = ";".join(current)
+    sync_pret_preluat(source)
     db.session.commit()
 
     create_notification(
@@ -89,6 +90,23 @@ def associate_confirm(product_id):
     audit("Asociere confirmata | product_id=%s | ids=%s", source.id, ids_to_save)
 
     return jsonify({"saved": True, "asociere": source.asociere})
+
+
+@bp.route("/associate/<int:product_id>/pret/<int:asociat_id>", methods=["POST"])
+@csrf.exempt
+@limiter.limit("30 per minute")
+def associate_pret(product_id, asociat_id):
+    source = CompetitorProduct.query.get_or_404(product_id)
+    asociat = CompetitorProduct.query.get_or_404(asociat_id)
+
+    asocieri = [x for x in (source.asociere or "").split(";") if x]
+    if str(asociat_id) not in asocieri:
+        return jsonify({"error": "Produsul nu este asociat"}), 400
+
+    source.pret_preluat = asociat.pret
+    db.session.commit()
+    audit("Pret preluat | product_id=%s | de la=%s | pret=%s", source.id, asociat_id, asociat.pret)
+    return jsonify({"ok": True, "pret_preluat": asociat.pret})
 
 
 @bp.route("/config", methods=["GET", "POST"])

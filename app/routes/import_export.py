@@ -31,36 +31,37 @@ def import_view():
             target_path = Path(current_app.config["UPLOAD_FOLDER"]) / safe_filename(uploaded.filename)
             uploaded.save(target_path)
             
-            # Extrage mappingul din formular
+            # Extrage mappingul si categoria din formular
             mapping = {}
             for key in request.form.keys():
                 if key.startswith("mapping[") and key.endswith("]"):
-                    csv_col = key[8:-1]  # Extrage numele coloanei din mapping[col_name]
+                    csv_col = key[8:-1]
                     field = request.form.get(key)
-                    if field:  # Doar daca e selectat ceva
+                    if field:
                         mapping[csv_col] = field
-            
-            # Daca nu e mapping, incearca import direct (backward compatibility)
+
+            default_categorie = request.form.get("default_categorie", "").strip() or None
+
             if not mapping:
                 imported_count, _ = import_csv(
                     uploaded,
                     competitor_code,
                     current_app.config["UPLOAD_FOLDER"],
+                    default_categorie=default_categorie,
                 )
             else:
-                # Executa importul cu mappingul
                 file_content = target_path.read_text(encoding='utf-8')
                 file_obj = FileStorage(
                     stream=BytesIO(file_content.encode('utf-8')),
                     filename=uploaded.filename,
                     name='csv_file'
                 )
-                
                 imported_count, _ = import_csv(
                     file_obj,
                     competitor_code,
                     current_app.config["UPLOAD_FOLDER"],
                     mapping=mapping,
+                    default_categorie=default_categorie,
                 )
             
             create_notification(
