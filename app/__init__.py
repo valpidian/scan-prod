@@ -18,6 +18,11 @@ def create_app(config_object=Config):
 
     db.init_app(app)
 
+    from app.extensions import csrf, limiter, migrate
+    csrf.init_app(app)
+    limiter.init_app(app)
+    migrate.init_app(app, db)
+
     register_blueprints(app)
     configure_logging(app)
     register_context_processors(app)

@@ -1,6 +1,6 @@
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
-from app.extensions import db
+from app.extensions import csrf, db
 from app.models.competitor import Competitor
 from app.models.competitor_product import CompetitorProduct
 from app.services.product_search_service import build_query
@@ -16,12 +16,16 @@ def list_view():
         "sort": request.args.get("sort", "title").strip(),
         "direction": request.args.get("direction", "asc").strip(),
     }
-    products = build_query(filters).all()
+    page = request.args.get("page", 1, type=int)
+    per_page = current_app.config.get("PRODUCTS_PER_PAGE", 50)
+    pagination = build_query(filters).paginate(page=page, per_page=per_page, error_out=False)
+    products = pagination.items
     competitors = Competitor.query.order_by(Competitor.internal_code.asc()).all()
     competitor_lookup = {c.internal_code: c.display_name for c in competitors}
     return render_template(
         "products/list.html",
         products=products,
+        pagination=pagination,
         competitors=competitors,
         competitor_lookup=competitor_lookup,
         filters=filters,
@@ -29,6 +33,7 @@ def list_view():
 
 
 @bp.route("/<int:product_id>/edit", methods=["POST"])
+@csrf.exempt
 def edit(product_id):
     product = CompetitorProduct.query.get_or_404(product_id)
     data = request.get_json() if request.is_json else request.form

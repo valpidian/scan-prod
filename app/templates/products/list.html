@@ -49,7 +49,7 @@
 
 <div class="card">
   <div class="card-header d-flex justify-content-between align-items-center">
-    <span>Lista produse <span class="badge bg-secondary ms-2">{{ products|length }}</span></span>
+    <span>Lista produse <span class="badge bg-secondary ms-2">{{ pagination.total }}</span></span>
     <a class="btn btn-sm btn-primary btn-pill" href="{{ url_for('import_export.import_view') }}">
       <i class="fas fa-upload me-1"></i> Import nou
     </a>
@@ -260,5 +260,29 @@ async function saveEdit(id) {
   }
 }
 </script>
+
+{% if pagination.pages > 1 %}
+<div class="d-flex justify-content-center mt-4">
+  <nav>
+    <ul class="pagination">
+      <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('products.list_view', page=pagination.prev_num, **filters) }}">&laquo;</a>
+      </li>
+      {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+        {% if p %}
+          <li class="page-item {% if p == pagination.page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('products.list_view', page=p, **filters) }}">{{ p }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+        {% endif %}
+      {% endfor %}
+      <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('products.list_view', page=pagination.next_num, **filters) }}">&raquo;</a>
+      </li>
+    </ul>
+  </nav>
+</div>
+{% endif %}
 
 {% endblock %}

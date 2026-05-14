@@ -1,5 +1,6 @@
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 
+from app.extensions import csrf, limiter
 from app.extensions import db
 from app.models.ai_config import AIConfig
 from app.models.competitor import Competitor
@@ -30,6 +31,8 @@ def associate(product_id):
 
 
 @bp.route("/associate/<int:product_id>/run", methods=["POST"])
+@csrf.exempt
+@limiter.limit("20 per minute")
 def associate_run(product_id):
     source = CompetitorProduct.query.get_or_404(product_id)
     config = AIConfig.get_active()
@@ -60,6 +63,8 @@ def associate_run(product_id):
 
 
 @bp.route("/associate/<int:product_id>/confirm", methods=["POST"])
+@csrf.exempt
+@limiter.limit("30 per minute")
 def associate_confirm(product_id):
     source = CompetitorProduct.query.get_or_404(product_id)
     data = request.get_json()

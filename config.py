@@ -1,4 +1,5 @@
 import os
+import secrets
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -9,7 +10,8 @@ load_dotenv(BASE_DIR / ".env")
 
 
 class Config:
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
+    _secret = os.getenv("SECRET_KEY", "")
+    SECRET_KEY = _secret if _secret and _secret != "dev-secret-key-change-me" else secrets.token_hex(32)
     DEBUG = os.getenv("DEBUG", "false").lower() in {"1", "true", "yes", "on"}
     HOST = os.getenv("HOST", "127.0.0.1")
     PORT = int(os.getenv("PORT", "5055"))
@@ -18,6 +20,8 @@ class Config:
         f"sqlite:///{BASE_DIR / 'instance' / 'scan_pret.db'}",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    WTF_CSRF_ENABLED = True
+    WTF_CSRF_TIME_LIMIT = 3600
     MAX_CONTENT_LENGTH = 25 * 1024 * 1024
     UPLOAD_FOLDER = BASE_DIR / "uploads" / "imports"
     EXPORT_FOLDER = BASE_DIR / "uploads" / "exports"
@@ -29,3 +33,5 @@ class Config:
     ACCESS_LOG_FILE = os.getenv("ACCESS_LOG_FILE", str(BASE_DIR / "logs" / "access.log"))
     ERROR_LOG_FILE = os.getenv("ERROR_LOG_FILE", str(BASE_DIR / "logs" / "error.log"))
     AUDIT_LOG_FILE = os.getenv("AUDIT_LOG_FILE", str(BASE_DIR / "logs" / "audit.log"))
+    # Paginare
+    PRODUCTS_PER_PAGE = int(os.getenv("PRODUCTS_PER_PAGE", "50"))

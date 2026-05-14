@@ -1,8 +1,8 @@
 from flask import Blueprint, jsonify, render_template, request
 
-from app.extensions import db
+from app.extensions import csrf, db
 from app.models.competitor_product import CompetitorProduct
-from app.services.cleanup_service import analyze_field, clean_product, clean_text
+from app.services.cleanup_service import clean_product
 
 bp = Blueprint("cleanup", __name__)
 
@@ -48,6 +48,7 @@ def preview(product_id):
 
 
 @bp.route("/apply/<int:product_id>", methods=["POST"])
+@csrf.exempt
 def apply_one(product_id):
     """Aplica curatarea pe un singur produs."""
     p = CompetitorProduct.query.get_or_404(product_id)
@@ -59,6 +60,7 @@ def apply_one(product_id):
 
 
 @bp.route("/apply-all", methods=["POST"])
+@csrf.exempt
 def apply_all():
     """Aplica curatarea pe toate produsele murdare."""
     ids = request.get_json().get('ids', [])
