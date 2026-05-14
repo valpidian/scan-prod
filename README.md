@@ -23,7 +23,7 @@ Aplicatie web pentru monitorizarea si compararea preturilor produselor de la com
 - **Frontend**: Bootstrap 5.3, Font Awesome 6.5
 - **Securitate**: Flask-WTF (CSRF), Flask-Limiter (rate limiting)
 
-## Instalare
+## Instalare (Windows)
 
 ```bash
 # Cloneaza repo-ul
@@ -32,14 +32,38 @@ cd scan-prod
 
 # Creeaza si activeaza virtual environment
 python -m venv venv
-venv\Scripts\activate        # Windows
-# source venv/bin/activate   # Linux/Mac
+venv\Scripts\activate
 
 # Instaleaza dependentele
 pip install -r requirements.txt
 
 # Configureaza variabilele de mediu
 copy .env.example .env
+# Editeaza .env cu valorile tale
+
+# Ruleaza migrarile
+python migrate_db.py
+
+# Porneste aplicatia
+python run.py
+```
+
+## Instalare (Linux / Mac)
+
+```bash
+# Cloneaza repo-ul
+git clone https://github.com/valpidian/scan-prod.git
+cd scan-prod
+
+# Creeaza si activeaza virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Instaleaza dependentele
+pip install -r requirements.txt
+
+# Configureaza variabilele de mediu
+cp .env.example .env
 # Editeaza .env cu valorile tale
 
 # Ruleaza migrarile
@@ -57,6 +81,27 @@ DEBUG=false
 HOST=127.0.0.1
 PORT=5055
 DATABASE_URL=sqlite:///instance/scan_pret.db
+```
+
+> **Nota:** fisierul `.env` nu este inclus in repository (ignorat prin `.gitignore`).
+> Trebuie creat manual pe fiecare server dupa clonare.
+
+## Deployment productie (Linux + Gunicorn)
+
+```bash
+# Instaleaza Gunicorn
+pip install gunicorn
+
+# Ruleaza cu 4 workeri
+gunicorn -w 4 -b 0.0.0.0:5055 "app:create_app()"
+```
+
+Pentru productie seteaza in `.env`:
+
+```env
+DEBUG=false
+HOST=0.0.0.0
+SECRET_KEY=cheie-lunga-si-aleatoare
 ```
 
 ## Flux de lucru
