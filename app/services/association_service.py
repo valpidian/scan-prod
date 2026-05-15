@@ -15,10 +15,13 @@ def sync_pret_preluat(product):
         CompetitorProduct.pret.isnot(None),
     ).all()
     if associated:
-        product.pret_preluat = min(p.pret for p in associated)
+        min_product = min(associated, key=lambda p: p.pret)
+        product.pret_preluat = min_product.pret
+        product.pret_preluat_sursa = min_product.cod_competitor
+        product.pret_preluat_asociat_id = min_product.id
 
 
-def find_candidates(source_product, limit=None):
+def find_candidates(source_product, limit=None, target_competitors=None):
     from app.models.search_config import SearchConfig
     cfg = SearchConfig.get()
 
@@ -37,10 +40,16 @@ def find_candidates(source_product, limit=None):
     if not terms:
         return []
 
+    query = CompetitorProduct.query.filter(
+        CompetitorProduct.cod_competitor != source_product.cod_competitor
+    )
+
+    # Filtru optional pe competitori tinta
+    if target_competitors:
+        query = query.filter(CompetitorProduct.cod_competitor.in_(target_competitors))
+
     db_candidates = (
-        CompetitorProduct.query
-        .filter(CompetitorProduct.cod_competitor != source_product.cod_competitor)
-        .filter(or_(
+        query.filter(or_(
             *[CompetitorProduct.title.ilike(f"%{t}%") for t in terms],
             *[CompetitorProduct.sku.ilike(f"%{t}%") for t in terms],
             *([CompetitorProduct.brand.ilike(f"%{source_product.brand}%")] if source_product.brand else []),

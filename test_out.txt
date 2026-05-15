@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="csrf-token" content="IjQyNjdhYzc3NzhhNWY2ZTA3YmQwZDJhZWY1M2Q0MmMyMGFjYzhiZDAi.agcj4Q.ymmxhGayXlpU4E7U_2xCcbT0xp0">
+  <title>Scraping CMP004 | Scan Pret</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/static/css/main.css">
+  <link rel="stylesheet" href="/static/css/sidebar.css">
+  <link rel="stylesheet" href="/static/css/tables.css">
+</head>
+<body class="app-body">
+  <div class="app-veil app-veil-a" aria-hidden="true"></div>
+  <div class="app-veil app-veil-b" aria-hidden="true"></div>
+  <div class="app-shell">
+    <aside class="app-sidebar">
+      
+<div class="sidebar-panel">
+
+  <!-- Ordinea de lucru -->
+  <section class="sidebar-card">
+    <div class="sidebar-collapse-head" onclick="toggleSection('workflow')">
+      <div class="sidebar-section-head">
+        <span class="eyebrow">Fluxul aplicatiei</span>
+        <strong>Ordinea de lucru</strong>
+      </div>
+      <i class="fas fa-chevron-down sidebar-chevron" id="chevron-workflow"></i>
+    </div>
+    <div class="sidebar-collapse-body" id="section-workflow">
+      <div class="workflow-sidebar mt-2">
+        
+          
+            <a class="workflow-step-card " href="/competitors/">
+          
+              <span class="workflow-step-number">1</span>
+              <div class="workflow-step-body">
+                <strong>Competitori</strong>
+                <small>Adauga URL → cod intern</small>
+              </div>
+          
+            </a>
+          
+        
+          
+            <a class="workflow-step-card is-active" href="/io/import">
+          
+              <span class="workflow-step-number">2</span>
+              <div class="workflow-step-body">
+                <strong>Import / Scraping</strong>
+                <small>CSV sau scraping web</small>
+              </div>
+          
+            </a>
+          
+        
+          
+            <a class="workflow-step-card " href="/cleanup/">
+          
+              <span class="workflow-step-number">3</span>
+              <div class="workflow-step-body">
+                <strong>Curatare date</strong>
+                <small>Elimina HTML, URL-uri, fisiere</small>
+              </div>
+          
+            </a>
+          
+        
+          
+            <a class="workflow-step-card " href="/products/">
+          
+              <span class="workflow-step-number">4</span>
+              <div class="workflow-step-body">
+                <strong>Vizualizare produse</strong>
+                <small>Filtrare, sortare, editare</small>
+              </div>
+          
+            </a>
+          
+        
+          
+            <a class="workflow-step-card " href="/search/">
+          
+              <span class="workflow-step-number">5</span>
+              <div class="workflow-step-body">
+                <strong>Cautare produs</strong>
+                <small>SKU, titlu, descriere, brand</small>
+              </div>
+          
+            </a>
+          
+        
+          
+            <a class="workflow-step-card " href="/products/">
+          
+              <span class="workflow-step-number">6</span>
+              <div class="workflow-step-body">
+                <strong>Asociere AI</strong>
+                <small>Potrivire automata produse</small>
+              </div>
+          
+            </a>
+          
+        
+          
+            <a class="workflow-step-card " href="/io/export">
+          
+              <span class="workflow-step-number">7</span>
+              <div class="workflow-step-body">
+                <strong>Export CSV</strong>
+                <small>Download per competitor</small>
+              </div>
+          
+            </a>
+          
+        
+      </div>
+    </div>
+  </section>
+
+  <!-- Notificari -->
+  <section class="sidebar-card">
+    <div class="sidebar-collapse-head" onclick="toggleSection('notifications')">
+      <h2 class="h6 mb-0">
+        Notificari recente
+        
+          <span class="badge bg-danger ms-1" style="font-size:0.65rem;">18</span>
+        
+      </h2>
+      <i class="fas fa-chevron-down sidebar-chevron" id="chevron-notifications"></i>
+    </div>
+    <div class="sidebar-collapse-body" id="section-notifications">
+      <div class="mt-2">
+        
+  <div class="notification-list">
+    
+      <div class="notification-item notification-success">
+        <strong>Competitor adaugat</strong>
+        <div class="small">CMP004 a fost generat pentru vent-sys.ro.</div>
+      </div>
+    
+      <div class="notification-item notification-info">
+        <strong>Export generat</strong>
+        <div class="small">Au fost exportate 879 produse pentru CMP001.</div>
+      </div>
+    
+      <div class="notification-item notification-info">
+        <strong>Export generat</strong>
+        <div class="small">Au fost exportate 879 produse pentru CMP001.</div>
+      </div>
+    
+      <div class="notification-item notification-info">
+        <strong>Export generat</strong>
+        <div class="small">Au fost exportate 879 produse pentru CMP001.</div>
+      </div>
+    
+      <div class="notification-item notification-success">
+        <strong>Import finalizat</strong>
+        <div class="small">Au fost importate 500 produse pentru CMP003.</div>
+      </div>
+    
+      <div class="notification-item notification-success">
+        <strong>Competitor adaugat</strong>
+        <div class="small">CMP003 a fost generat pentru materiale-piesefrigorifice.ro.</div>
+      </div>
+    
+      <div class="notification-item notification-warning">
+        <strong>Asociere neidentificata</strong>
+        <div class="small">Produsul #933: AI neconfigurat</div>
+      </div>
+    
+      <div class="notification-item notification-warning">
+        <strong>Asociere neidentificata</strong>
+        <div class="small">Produsul #739: AI neconfigurat</div>
+      </div>
+    
+      <div class="notification-item notification-warning">
+        <strong>Asociere neidentificata</strong>
+        <div class="small">Produsul #739: AI neconfigurat</div>
+      </div>
+    
+      <div class="notification-item notification-success">
+        <strong>Asociere actualizata</strong>
+        <div class="small">Produsul 933 a fost asociat cu 933.</div>
+      </div>
+    
+  </div>
+
+      </div>
+      <a class="small d-block mt-2" href="/notifications/" style="color:rgba(238,244,255,0.7);">
+        Vezi toate &rarr;
+      </a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <section class="sidebar-footer-card">
+    <div class="small text-uppercase">Stare sistem</div>
+    <strong>Local sync activ</strong>
+    <p class="mb-0">Serverul ruleaza in mod de lucru local.</p>
+    <a href="/ai/config" class="btn btn-soft btn-pill w-100 mt-3" style="font-size:0.85rem;">
+      <i class="fas fa-cog"></i> Configurare AI
+    </a>
+    <a href="/search-config/" class="btn btn-soft btn-pill w-100 mt-2" style="font-size:0.85rem;">
+      <i class="fas fa-sliders-h"></i> Sensibilitate cautare
+    </a>
+  </section>
+
+</div>
+
+<style>
+.sidebar-collapse-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 0;
+}
+.sidebar-collapse-head:hover .sidebar-chevron {
+  color: rgba(238,244,255,0.9);
+}
+.sidebar-chevron {
+  font-size: 0.75rem;
+  color: rgba(238,244,255,0.45);
+  transition: transform 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+}
+.sidebar-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+.sidebar-collapse-body {
+  overflow: hidden;
+  transition: max-height 0.25s ease, opacity 0.2s ease;
+  max-height: 600px;
+  opacity: 1;
+}
+.sidebar-collapse-body.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+</style>
+
+<script>
+const SIDEBAR_STATE_KEY = 'sidebar_sections';
+
+function getSavedState() {
+  try { return JSON.parse(localStorage.getItem(SIDEBAR_STATE_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function saveState(state) {
+  localStorage.setItem(SIDEBAR_STATE_KEY, JSON.stringify(state));
+}
+
+function toggleSection(id) {
+  const body = document.getElementById(`section-${id}`);
+  const chevron = document.getElementById(`chevron-${id}`);
+  const isCollapsed = body.classList.contains('collapsed');
+
+  body.classList.toggle('collapsed', !isCollapsed);
+  chevron.classList.toggle('collapsed', !isCollapsed);
+
+  const state = getSavedState();
+  state[id] = !isCollapsed ? 'collapsed' : 'open';
+  saveState(state);
+}
+
+// Restaureaza starea la incarcare
+document.addEventListener('DOMContentLoaded', function() {
+  const state = getSavedState();
+  ['workflow', 'notifications'].forEach(id => {
+    if (state[id] === 'collapsed') {
+      const body = document.getElementById(`section-${id}`);
+      const chevron = document.getElementById(`chevron-${id}`);
+      if (body) body.classList.add('collapsed');
+      if (chevron) chevron.classList.add('collapsed');
+    }
+  });
+});
+</script>
+    </aside>
+    <main class="app-main">
+      <div class="app-main-surface">
+        <header class="topbar">
+  <div class="topbar-copy">
+    <span class="eyebrow">Mail-style control room</span>
+    <div class="topbar-title-row">
+      <h1 class="h3 mb-1">Scan Pret</h1>
+      <span class="status-badge">Local sync</span>
+    </div>
+    <p class="topbar-subtitle mb-0">Import, cautare, asociere si export intr-un spatiu compact.</p>
+  </div>
+
+  <form class="topbar-search" action="/search/" method="get">
+    <label class="form-label small mb-1" for="topbar-search-input">Cautare rapida</label>
+    <div class="input-group input-group-lg topbar-search-group">
+      <input
+        id="topbar-search-input"
+        type="text"
+        class="form-control"
+        name="q"
+        value=""
+        placeholder="SKU, titlu, brand, descriere..."
+        
+      >
+      <button class="btn btn-primary btn-pill" type="submit">Cauta</button>
+    </div>
+  </form>
+
+  <div class="topbar-actions">
+    <a class="btn btn-soft btn-pill" href="/competitors/">Competitori</a>
+    <a class="btn btn-primary btn-pill" href="/io/import">Import CSV</a>
+    <a class="btn btn-soft btn-pill" href="/products/">Produse</a>
+  </div>
+</header>
+        <section class="workspace container-fluid py-4">
+          
+  
+
+          
+<div class="d-flex align-items-center gap-2 mb-3">
+  <a href="/scraping/" class="btn btn-soft btn-sm btn-pill">
+    <i class="fas fa-arrow-left"></i>
+  </a>
+  <h4 class="mb-0">
+    <i class="fas fa-spider me-2"></i>Scraping —
+    <code>CMP004</code>
+    <small class="text-muted fw-normal ms-1">vent-sys.ro</small>
+  </h4>
+  <div class="ms-auto d-flex gap-2">
+    
+      <span class="badge bg-warning text-dark align-self-center">5859 pending</span>
+      <span class="badge bg-success align-self-center">0 scraped</span>
+      
+    
+  </div>
+</div>
+
+<ul class="nav nav-tabs mb-0" id="scrapeTabs" role="tablist">
+  <li class="nav-item">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-sitemap" type="button">
+      <i class="fas fa-sitemap me-1"></i>1. Sitemap
+      <span class="badge bg-secondary ms-1">5859</span>
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-urls" type="button">
+      <i class="fas fa-list me-1"></i>2. URL-uri
+      <span class="badge bg-warning text-dark ms-1">5859</span>
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-selectors" type="button">
+      <i class="fas fa-code me-1"></i>3. Selectori CSS
+      <i class="fas fa-check-circle text-success ms-1" style="font-size:.75rem;"></i>
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-run" type="button">
+      <i class="fas fa-play me-1"></i>4. Scraping
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content border border-top-0 rounded-bottom bg-white p-3">
+
+  
+  <div class="tab-pane fade show active" id="tab-sitemap">
+    <p class="text-muted small mb-3">Introdu URL-ul sitemap-ului XML al competitorului. Sistemul va extrage automat toate URL-urile de produse.</p>
+    <div class="row g-3 align-items-end" style="max-width:900px;">
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">URL Sitemap XML</label>
+        <input type="text" id="sitemap-url" class="form-control"
+               value="https://www.vent-sys.ro/sitemap-produse.xml"
+               placeholder="https://competitor.ro/sitemap.xml">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Filtru URL <span class="text-muted">(regex, optional)</span></label>
+        <input type="text" id="url-filter" class="form-control"
+               value=""
+               placeholder="ex: /produs/|/p/">
+      </div>
+      <div class="col-md-3">
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-primary btn-pill" id="btn-analyze" onclick="analyzeSitemap(false)">
+            <i class="fas fa-search me-1"></i>Analizeaza
+          </button>
+          
+          <button type="button" class="btn btn-outline-warning btn-pill" onclick="analyzeSitemap(true)" title="Reimporta (sterge existente)">
+            <i class="fas fa-sync"></i>
+          </button>
+          
+        </div>
+      </div>
+    </div>
+    <div id="analyze-result" class="mt-3"></div>
+
+    
+    <div class="alert alert-success mt-3 mb-0 py-2 small">
+      <i class="fas fa-check-circle me-2"></i>
+      <strong>5859</strong> URL-uri in baza de date —
+      <a href="#tab-urls" onclick="switchTab('tab-urls')" class="fw-bold">Vezi tabelul URL-uri →</a>
+    </div>
+    
+  </div>
+
+  
+  <div class="tab-pane fade" id="tab-urls">
+    
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div class="d-flex gap-2 align-items-center">
+          <select id="filter-status" class="form-select form-select-sm" style="width:130px;" onchange="loadUrls(1)">
+            <option value="">Toate (5859)</option>
+            <option value="pending">Pending (5859)</option>
+            <option value="scraped">Scraped (0)</option>
+            <option value="error">Erori (0)</option>
+          </select>
+        </div>
+        <button type="button" class="btn btn-soft btn-sm btn-pill" onclick="loadUrls(urlsCurrentPage)">
+          <i class="fas fa-sync"></i>
+        </button>
+      </div>
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:40px;">#</th>
+            <th>URL produs</th>
+            <th style="width:90px;">Status</th>
+            <th>Produs asociat</th>
+            <th style="width:110px;">Scraped la</th>
+          </tr>
+        </thead>
+        <tbody id="urls-tbody">
+          <tr><td colspan="5" class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm"></span></td></tr>
+        </tbody>
+      </table>
+      <div id="urls-pagination" class="d-flex justify-content-between align-items-center pt-2 border-top small text-muted mt-1"></div>
+    
+  </div>
+
+  
+  <div class="tab-pane fade" id="tab-selectors">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <input type="text" id="discover-url" class="form-control form-control-sm" style="max-width:420px;"
+             placeholder="URL produs pentru auto-descoperire selectori...">
+      <button type="button" class="btn btn-soft btn-sm btn-pill" id="btn-discover" onclick="discoverSelectors()">
+        <i class="fas fa-magic me-1"></i>Descopera automat
+      </button>
+    </div>
+    <div id="discover-result" class="d-none mb-3"></div>
+
+    <form method="post" action="/scraping/CMP004/save" id="selectors-form">
+      <input type="hidden" name="csrf_token" value="IjQyNjdhYzc3NzhhNWY2ZTA3YmQwZDJhZWY1M2Q0MmMyMGFjYzhiZDAi.agcj4Q.ymmxhGayXlpU4E7U_2xCcbT0xp0">
+      <input type="hidden" name="url_filter" id="hidden-url-filter" value="">
+      <input type="hidden" name="delay" value="1.0">
+      <table class="table table-sm mb-3" style="max-width:700px;">
+        <thead class="table-light">
+          <tr><th style="width:140px;">Camp</th><th>Selector CSS</th><th style="width:50px;"></th></tr>
+        </thead>
+        <tbody>
+          
+          
+          <tr>
+            <td>
+              <strong>Titlu</strong>
+              <span class="badge bg-danger ms-1" style="font-size:.6rem;">req</span>
+            </td>
+            <td>
+              <input type="text" name="sel_title" id="sel_title"
+                     class="form-control form-control-sm selector-input"
+                     data-field="sel_title" value="span[itemprop=&#39;name&#39;]"
+                     placeholder="ex: h1.product-title">
+            </td>
+            <td>
+              <button type="button" class="btn btn-outline-secondary btn-sm btn-pill"
+                      onclick="testSingleSelector('sel_title')" title="Test">
+                <i class="fas fa-vial"></i>
+              </button>
+            </td>
+          </tr>
+          
+          <tr>
+            <td>
+              <strong>SKU</strong>
+              
+            </td>
+            <td>
+              <input type="text" name="sel_sku" id="sel_sku"
+                     class="form-control form-control-sm selector-input"
+                     data-field="sel_sku" value="h3.product-code.pull-left"
+                     placeholder="ex: h1.product-title">
+            </td>
+            <td>
+              <button type="button" class="btn btn-outline-secondary btn-sm btn-pill"
+                      onclick="testSingleSelector('sel_sku')" title="Test">
+                <i class="fas fa-vial"></i>
+              </button>
+            </td>
+          </tr>
+          
+          <tr>
+            <td>
+              <strong>Pret</strong>
+              
+            </td>
+            <td>
+              <input type="text" name="sel_pret" id="sel_pret"
+                     class="form-control form-control-sm selector-input"
+                     data-field="sel_pret" value="div.product-price"
+                     placeholder="ex: h1.product-title">
+            </td>
+            <td>
+              <button type="button" class="btn btn-outline-secondary btn-sm btn-pill"
+                      onclick="testSingleSelector('sel_pret')" title="Test">
+                <i class="fas fa-vial"></i>
+              </button>
+            </td>
+          </tr>
+          
+          <tr>
+            <td>
+              <strong>Brand</strong>
+              
+            </td>
+            <td>
+              <input type="text" name="sel_brand" id="sel_brand"
+                     class="form-control form-control-sm selector-input"
+                     data-field="sel_brand" value=""
+                     placeholder="ex: h1.product-title">
+            </td>
+            <td>
+              <button type="button" class="btn btn-outline-secondary btn-sm btn-pill"
+                      onclick="testSingleSelector('sel_brand')" title="Test">
+                <i class="fas fa-vial"></i>
+              </button>
+            </td>
+          </tr>
+          
+          <tr>
+            <td>
+              <strong>Descriere</strong>
+              
+            </td>
+            <td>
+              <input type="text" name="sel_descriere" id="sel_descriere"
+                     class="form-control form-control-sm selector-input"
+                     data-field="sel_descriere" value="div.description"
+                     placeholder="ex: h1.product-title">
+            </td>
+            <td>
+              <button type="button" class="btn btn-outline-secondary btn-sm btn-pill"
+                      onclick="testSingleSelector('sel_descriere')" title="Test">
+                <i class="fas fa-vial"></i>
+              </button>
+            </td>
+          </tr>
+          
+          <tr>
+            <td>
+              <strong>Categorie</strong>
+              
+            </td>
+            <td>
+              <input type="text" name="sel_categorie" id="sel_categorie"
+                     class="form-control form-control-sm selector-input"
+                     data-field="sel_categorie" value="a[itemprop=&#39;item&#39;]"
+                     placeholder="ex: h1.product-title">
+            </td>
+            <td>
+              <button type="button" class="btn btn-outline-secondary btn-sm btn-pill"
+                      onclick="testSingleSelector('sel_categorie')" title="Test">
+                <i class="fas fa-vial"></i>
+              </button>
+            </td>
+          </tr>
+          
+        </tbody>
+      </table>
+      <button type="submit" class="btn btn-primary btn-pill">
+        <i class="fas fa-save me-1"></i>Salveaza selectori
+      </button>
+    </form>
+  </div>
+
+  
+  <div class="tab-pane fade" id="tab-run">
+    
+      <div id="run-idle">
+        <div class="alert alert-info py-2 small mb-3">
+          <strong>5859</strong> URL-uri pending din <strong>5859</strong> total.
+          Scraping-ul proceseaza doar URL-urile cu status <em>pending</em>.
+        </div>
+        <button type="button" class="btn btn-success btn-pill" onclick="startJob()"
+                >
+          <i class="fas fa-play me-1"></i>Porneste scraping
+          (5859 URL-uri)
+        </button>
+      </div>
+
+      <div id="run-progress" class="d-none">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+          <strong>Scraping in executie...</strong>
+          <span id="progress-counter" class="text-muted small ms-1"></span>
+        </div>
+        <div class="progress mb-2" style="height:5px;">
+          <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width:0%"></div>
+        </div>
+        <div id="progress-log" class="border rounded p-2 bg-light"
+             style="max-height:300px;overflow-y:auto;font-size:0.78rem;font-family:monospace;"></div>
+      </div>
+
+      <div id="run-done" class="d-none">
+        <div class="alert alert-success mb-2" id="done-msg"></div>
+        <div class="d-flex gap-2">
+          <a href="/products/" class="btn btn-primary btn-pill">
+            <i class="fas fa-list me-1"></i>Vezi produsele
+          </a>
+          <button type="button" class="btn btn-soft btn-pill" onclick="location.reload()">
+            <i class="fas fa-sync me-1"></i>Reincarca
+          </button>
+        </div>
+      </div>
+
+      <div id="run-error" class="d-none">
+        <div class="alert alert-danger" id="error-msg"></div>
+      </div>
+    
+  </div>
+
+</div>
+
+<script>
+const CODE = "CMP004";
+let urlsCurrentPage = 1;
+let urlsLoaded = false;
+let pollInterval = null;
+let progressOffset = 0;
+
+// ── TAB SWITCH ─────────────────────────────────────────────────────────────
+function switchTab(id) {
+  const btn = document.querySelector(`[data-bs-target="#${id}"]`);
+  if (btn) btn.click();
+}
+
+document.querySelectorAll('[data-bs-toggle="tab"]').forEach(btn => {
+  btn.addEventListener('shown.bs.tab', e => {
+    const target = e.target.getAttribute('data-bs-target');
+    if (target === '#tab-urls' && !urlsLoaded) {
+      urlsLoaded = true;
+      loadUrls(1);
+    }
+  });
+});
+
+// ── ANALIZA SITEMAP ────────────────────────────────────────────────────────
+function analyzeSitemap(replace) {
+  const sitemapUrl = document.getElementById('sitemap-url').value.trim();
+  const urlFilter  = document.getElementById('url-filter').value.trim();
+  if (!sitemapUrl) { alert('Introdu URL-ul sitemap-ului.'); return; }
+
+  const btn = document.getElementById('btn-analyze');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Se analizeaza...';
+
+  const resultDiv = document.getElementById('analyze-result');
+  resultDiv.innerHTML = '<div class="text-muted small"><span class="spinner-border spinner-border-sm me-1"></span>Se parseaza sitemap-ul...</div>';
+
+  fetch(`/scraping/${CODE}/analyze-sitemap`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sitemap_url: sitemapUrl, url_filter: urlFilter, replace })
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-search me-1"></i>Analizeaza';
+    if (data.error) {
+      resultDiv.innerHTML = `<div class="alert alert-danger py-2 small mb-0"><i class="fas fa-exclamation-triangle me-1"></i>${data.error}</div>`;
+      return;
+    }
+    resultDiv.innerHTML = `
+      <div class="alert alert-success py-2 small mb-0">
+        <i class="fas fa-check-circle me-1"></i>
+        <strong>${data.total}</strong> URL-uri gasite,
+        <strong>${data.added}</strong> adaugate noi,
+        <strong>${data.existing}</strong> existente deja.
+        Se reincarca pagina...
+      </div>`;
+    setTimeout(() => location.reload(), 1200);
+  })
+  .catch(e => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-search me-1"></i>Analizeaza';
+    resultDiv.innerHTML = `<div class="alert alert-danger py-2 small mb-0">Eroare retea: ${e}</div>`;
+  });
+}
+
+// ── TABEL URL-URI ──────────────────────────────────────────────────────────
+function loadUrls(page) {
+  urlsCurrentPage = page;
+  const status = document.getElementById('filter-status')?.value || '';
+  const tbody = document.getElementById('urls-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="5" class="text-center py-2"><span class="spinner-border spinner-border-sm"></span></td></tr>';
+
+  fetch(`/scraping/${CODE}/urls?page=${page}&status=${status}`)
+  .then(r => r.json())
+  .then(data => {
+    if (!data.items.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Niciun URL.</td></tr>';
+      document.getElementById('urls-pagination').innerHTML = '';
+      return;
+    }
+    const badge = {
+      pending: '<span class="badge bg-warning text-dark">pending</span>',
+      scraped: '<span class="badge bg-success">scraped</span>',
+      error:   '<span class="badge bg-danger">error</span>',
+    };
+    tbody.innerHTML = data.items.map((u, i) => `
+      <tr>
+        <td class="text-muted small">${(page-1)*50+i+1}</td>
+        <td>
+          <div class="d-flex align-items-center gap-1">
+            <a href="${u.url}" target="_blank" class="small text-truncate" style="max-width:340px;" title="${u.url}">${u.url}</a>
+            <button type="button" class="btn btn-outline-secondary btn-sm btn-pill flex-shrink-0 copy-btn"
+                    style="padding:1px 6px;font-size:.7rem;"
+                    data-url="${u.url}" onclick="copyUrl(this)" title="Copiaza URL">
+              <i class="fas fa-copy"></i>
+            </button>
+          </div>
+          ${u.error_msg ? `<small class="text-danger">${u.error_msg}</small>` : ''}
+        </td>
+        <td>${badge[u.status] || u.status}</td>
+        <td class="small">
+          ${u.product_title
+            ? `<span class="text-success">${u.product_title.substring(0,45)}</span><br><code class="text-muted" style="font-size:.68rem;">${u.product_sku||''}</code>`
+            : '<span class="text-muted">—</span>'}
+        </td>
+        <td class="small text-muted">${u.scraped_at ? u.scraped_at.substring(0,16).replace('T',' ') : '—'}</td>
+      </tr>`).join('');
+
+    const pag = document.getElementById('urls-pagination');
+    const start = (page-1)*50+1, end = Math.min(page*50, data.total);
+    let h = `<span>${start}–${end} din ${data.total}</span><div class="d-flex gap-1 flex-wrap">`;
+    for (let p = 1; p <= data.pages; p++) {
+      if (data.pages > 8 && Math.abs(p-page) > 2 && p !== 1 && p !== data.pages) {
+        if (p === 2 || p === data.pages-1) h += '<span class="px-1">…</span>';
+        continue;
+      }
+      h += `<button class="btn btn-sm ${p===page?'btn-primary':'btn-outline-secondary'} btn-pill px-2 py-0" onclick="loadUrls(${p})">${p}</button>`;
+    }
+    pag.innerHTML = h + '</div>';
+  });
+}
+
+// ── COPY URL ──────────────────────────────────────────────────────────────
+function copyUrl(btn) {
+  const url = btn.dataset.url;
+  navigator.clipboard.writeText(url).then(() => {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i>';
+    btn.classList.replace('btn-outline-secondary', 'btn-success');
+    setTimeout(() => { btn.innerHTML = orig; btn.classList.replace('btn-success', 'btn-outline-secondary'); }, 1500);
+  });
+}
+
+// ── AUTO-DISCOVER ──────────────────────────────────────────────────────────
+const FIELD_MAP = { title:'sel_title', pret:'sel_pret', sku:'sel_sku', brand:'sel_brand', descriere:'sel_descriere', categorie:'sel_categorie' };
+const FIELD_LABEL = { title:'Titlu', pret:'Pret', sku:'SKU', brand:'Brand', descriere:'Descriere', categorie:'Categorie' };
+const SRC_BADGE = { structured:'<span class="badge bg-success ms-1" style="font-size:.58rem;">JSON-LD</span>', css:'<span class="badge bg-info text-dark ms-1" style="font-size:.58rem;">CSS</span>' };
+window._discovered = {};
+
+function discoverSelectors() {
+  let url = document.getElementById('discover-url').value.trim();
+  if (!url) {
+    const firstLink = document.querySelector('#urls-tbody a');
+    if (firstLink) { url = firstLink.href; document.getElementById('discover-url').value = url; }
+    else { alert('Introdu un URL de produs.'); return; }
+  }
+  const btn = document.getElementById('btn-discover');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Se analizeaza...';
+
+  fetch(`/scraping/${CODE}/discover`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-magic me-1"></i>Descopera automat';
+    const div = document.getElementById('discover-result');
+    div.classList.remove('d-none');
+    if (data.error) { div.innerHTML = `<div class="alert alert-danger py-2 small">${data.error}</div>`; return; }
+
+    // Salveaza cei mai buni selectori
+    window._discovered = {};
+    for (const [field, inputId] of Object.entries(FIELD_MAP)) {
+      const res = data[field];
+      if (res?.candidates?.length) window._discovered[inputId] = res.candidates[0].selector;
+      else if (res?.selector)      window._discovered[inputId] = res.selector;
+    }
+
+    // Tabel aliniat cu tabelul de selectori
+    let rows = '';
+    for (const [field, inputId] of Object.entries(FIELD_MAP)) {
+      const res = data[field];
+      const src = SRC_BADGE[res?.source] || '';
+      const val = res?.value
+        ? `<span class="text-success" style="font-size:.75rem;" title="${res.value}">${res.value.substring(0,55)}${res.value.length>55?'…':''}</span>`
+        : '<span class="text-muted" style="font-size:.75rem;">—</span>';
+      let btns = '<span class="text-muted" style="font-size:.72rem;">Negasit</span>';
+      if (res?.candidates?.length) {
+        btns = res.candidates.map(c => {
+          const sel = c.selector.replace(/\\/g,'\\\\').replace(/`/g,'\\`');
+          return `<button type="button" class="btn btn-sm btn-outline-primary btn-pill me-1 mb-1"
+            style="font-size:.68rem;font-family:monospace;padding:1px 7px;"
+            onclick="applySelector('${inputId}',\`${sel}\`,this)"
+            title="${c.preview.substring(0,100).replace(/"/g,'&quot;')}">${c.selector}</button>`;
+        }).join('');
+      }
+      rows += `<tr>
+        <td class="small fw-semibold">${FIELD_LABEL[field]}${src}</td>
+        <td>${val}</td>
+        <td>${btns}</td>
+      </tr>`;
+    }
+
+    div.innerHTML = `
+      <div class="border rounded bg-light mb-0">
+        <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+          <span class="small fw-semibold">Selectori descoperiti</span>
+          <button type="button" class="btn btn-success btn-sm btn-pill" onclick="applyAllSelectors(this)">
+            <i class="fas fa-magic me-1"></i>Populeaza automat toate campurile
+          </button>
+        </div>
+        <table class="table table-sm mb-0">
+          <thead class="table-light"><tr>
+            <th style="width:110px;">Camp</th>
+            <th style="width:180px;">Valoare gasita</th>
+            <th>Selectori candidati</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  })
+  .catch(e => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-magic me-1"></i>Descopera automat';
+    const div = document.getElementById('discover-result');
+    div.classList.remove('d-none');
+    div.innerHTML = `<div class="alert alert-danger py-2 small">Eroare: ${e}</div>`;
+  });
+}
+
+function applyAllSelectors(btn) {
+  let count = 0;
+  for (const [inputId, selector] of Object.entries(window._discovered)) {
+    const input = document.getElementById(inputId);
+    if (input && selector) {
+      input.value = selector;
+      input.classList.add('border-success');
+      setTimeout(() => input.classList.remove('border-success'), 2000);
+      count++;
+    }
+  }
+  const orig = btn.innerHTML;
+  btn.innerHTML = `<i class="fas fa-check me-1"></i>${count} campuri populate`;
+  btn.disabled = true;
+  setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 2000);
+}
+
+function applySelector(inputId, selector, btn) {
+  const input = document.getElementById(inputId);
+  if (input) { input.value = selector; input.classList.add('border-success'); setTimeout(() => input.classList.remove('border-success'), 1500); }
+  btn.closest('.d-flex')?.querySelectorAll('button').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-outline-primary'); });
+  btn.classList.remove('btn-outline-primary'); btn.classList.add('btn-primary');
+}
+
+// ── TEST SELECTOR ──────────────────────────────────────────────────────────
+function testSingleSelector(fieldName) {
+  const url = document.getElementById('discover-url').value.trim() || document.querySelector('#urls-tbody a')?.href || '';
+  if (!url) { alert('Introdu un URL in campul de auto-descoperire.'); return; }
+  const selectors = {};
+  document.querySelectorAll('.selector-input').forEach(el => { selectors[el.dataset.field.replace('sel_','')] = el.value.trim() || null; });
+  fetch(`/scraping/${CODE}/test`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, ...Object.fromEntries(Object.entries(selectors).map(([k,v]) => [`sel_${k}`,v])) })
+  })
+  .then(r => r.json())
+  .then(data => {
+    const field = fieldName.replace('sel_','');
+    const val = data[field];
+    alert(val ? `✓ ${field}: ${val}` : `✗ ${field}: negasit`);
+  });
+}
+
+// ── SCRAPING JOB ───────────────────────────────────────────────────────────
+function startJob() {
+  fetch(`/scraping/${CODE}/start`, { method:'POST', headers:{'Content-Type':'application/json'} })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { alert(data.error); return; }
+    document.getElementById('run-idle').classList.add('d-none');
+    document.getElementById('run-progress').classList.remove('d-none');
+    progressOffset = 0;
+    pollInterval = setInterval(pollStatus, 1500);
+  });
+}
+
+function pollStatus() {
+  fetch(`/scraping/${CODE}/status?offset=${progressOffset}`)
+  .then(r => r.json())
+  .then(data => {
+    progressOffset = data.offset || progressOffset;
+    const log = document.getElementById('progress-log');
+    data.progress.forEach(p => {
+      const line = document.createElement('div');
+      line.className = p.status === 'error' ? 'text-danger' : 'text-success';
+      line.textContent = `[${p.current}/${p.total}] ${p.status==='error' ? '✗ '+(p.error||p.url) : '✓ '+(p.title||p.url)}`;
+      log.appendChild(line); log.scrollTop = log.scrollHeight;
+    });
+    if (data.progress.length) {
+      const last = data.progress[data.progress.length-1];
+      const pct = last.total ? Math.round(last.current/last.total*100) : 0;
+      document.getElementById('progress-bar').style.width = pct+'%';
+      document.getElementById('progress-counter').textContent = `${last.current}/${last.total} (${pct}%)`;
+    }
+    if (data.status === 'done') {
+      clearInterval(pollInterval);
+      document.getElementById('run-progress').classList.add('d-none');
+      document.getElementById('run-done').classList.remove('d-none');
+      const s = data.stats;
+      document.getElementById('done-msg').innerHTML =
+        `<i class="fas fa-check-circle me-2"></i>Finalizat: <strong>${s.inserted}</strong> inserate, <strong>${s.updated}</strong> actualizate, <strong>${s.errors}</strong> erori din <strong>${s.total}</strong>.`;
+    } else if (data.status === 'error') {
+      clearInterval(pollInterval);
+      document.getElementById('run-progress').classList.add('d-none');
+      document.getElementById('run-error').classList.remove('d-none');
+      document.getElementById('error-msg').textContent = 'Eroare: ' + (data.error || 'necunoscuta');
+    }
+  });
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('selectors-form')?.addEventListener('submit', () => {
+    document.getElementById('hidden-url-filter').value = document.getElementById('url-filter').value;
+  });
+  
+});
+</script>
+
+        </section>
+      </div>
+    </main>
+  </div>
+  <footer class="app-footer text-center py-3 small">
+  Scan Pret - Flask + SQLite control room
+</footer>
+  <script src="/static/js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  
+</body>
+</html>

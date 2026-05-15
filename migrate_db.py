@@ -14,6 +14,7 @@ COLUMNS_TO_ADD = [
     ("imported_at", "TIMESTAMP"),
     ("categorie",   "VARCHAR(120)"),
     ("pret_preluat", "FLOAT"),
+    ("pret_preluat_sursa", "VARCHAR(50)"),
 ]
 
 

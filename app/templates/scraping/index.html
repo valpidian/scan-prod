@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Scraping Web | Scan Pret{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header p-0">
+    <ul class="nav nav-tabs card-header-tabs px-3" style="border-bottom:0;">
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('import_export.import_view') }}">
+          <i class="fas fa-file-csv me-1"></i>Import CSV
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link active" href="{{ url_for('scraping.index') }}">
+          <i class="fas fa-spider me-1"></i>Scraping Web
+        </a>
+      </li>
+    </ul>
+  </div>
+  <div class="card-body {% if competitors %}p-0{% endif %}">
+    {% if not competitors %}
+      <div class="alert alert-warning mb-0">
+        Nu exista competitori. Adauga un URL in sectiunea
+        <a href="{{ url_for('competitors.index') }}">Competitori</a>.
+      </div>
+    {% else %}
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Cod intern</th>
+            <th>Competitor</th>
+            <th>Surse configurate</th>
+            <th>Selectori</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in competitors %}
+            {% set cfg = configs.get(c.internal_code) %}
+            <tr>
+              <td><code>{{ c.internal_code }}</code></td>
+              <td>{{ c.display_name }}</td>
+              <td>
+                {% if cfg and cfg.sources and cfg.sources != '[]' %}
+                  {% set srcs = cfg.sources | from_json %}
+                  <span class="badge bg-success">{{ srcs | length }} surse</span>
+                {% else %}
+                  <span class="badge bg-secondary">Neconfigurat</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if cfg and cfg.sel_title %}
+                  <span class="badge bg-info text-dark">Selectori setati</span>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <a href="{{ url_for('scraping.config_view', code=c.internal_code) }}"
+                   class="btn btn-sm btn-primary btn-pill">
+                  <i class="fas fa-cog me-1"></i>Configureaza
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

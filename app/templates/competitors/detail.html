@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+{% block title %}{{ competitor.display_name }} | Competitori | Scan Pret{% endblock %}
+
+{% block content %}
+
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('competitors.index') }}">Competitori</a></li>
+    <li class="breadcrumb-item active">{{ competitor.internal_code }}</li>
+  </ol>
+</nav>
+
+<div class="d-flex align-items-center gap-3 mb-4">
+  <div>
+    <h4 class="mb-0">{{ competitor.display_name }}</h4>
+    <span class="text-muted small">{{ competitor.source_host }}</span>
+  </div>
+  <span class="association-pill">{{ competitor.internal_code }}</span>
+  {% if competitor.is_active %}
+    <span class="badge text-bg-success">Activ</span>
+  {% else %}
+    <span class="badge text-bg-secondary">Inactiv</span>
+  {% endif %}
+  <a href="{{ competitor.source_url }}" target="_blank" rel="noopener noreferrer"
+     class="btn btn-sm btn-soft btn-pill ms-auto">
+    <i class="fas fa-external-link-alt me-1"></i> Deschide site
+  </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+    <div class="alert alert-{{ 'success' if category == 'success' else 'warning' }} alert-dismissible mb-4">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
+{% endwith %}
+
+<div class="row g-4">
+
+  <!-- ── Setari ── -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">Setari competitor</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('competitors.save', code=competitor.internal_code) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nume afisat</label>
+            <input type="text" name="display_name" class="form-control"
+                   value="{{ competitor.display_name }}" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              Selector CSS — pretul produsului
+              <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors"
+                 target="_blank" rel="noopener" class="text-muted small ms-1" title="Documentatie CSS selectors">
+                <i class="fas fa-question-circle"></i>
+              </a>
+            </label>
+            <input type="text" name="price_selector" id="price_selector"
+                   class="form-control font-monospace"
+                   value="{{ competitor.price_selector or '' }}"
+                   placeholder="ex: .product-new-price, span[data-price], strong.Price">
+            <div class="form-text">
+              Elementul HTML care contine pretul pe pagina de produs a acestui competitor.
+              Testeaza selectorul mai jos inainte de a-l salva.
+            </div>
+          </div>
+
+          <div class="mb-4 form-check">
+            <input type="checkbox" class="form-check-input" name="is_active" value="1"
+                   id="chk_active" {% if competitor.is_active %}checked{% endif %}>
+            <label class="form-check-label" for="chk_active">Competitor activ</label>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-pill">
+            <i class="fas fa-save me-1"></i> Salveaza setarile
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── Test selector ── -->
+    <div class="card mt-4">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="fas fa-flask text-muted"></i>
+        Testeaza selectorul CSS
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Introdu URL-ul unei pagini de produs de pe <strong>{{ competitor.source_host }}</strong>
+          si verifica daca selectorul extrage corect pretul.
+        </p>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">URL pagina produs</label>
+          <input type="url" id="test-url" class="form-control"
+                 placeholder="https://{{ competitor.source_host }}/produs/...">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">
+            Selector CSS
+            <span class="text-muted fw-normal">(optional — implicit cel de mai sus)</span>
+          </label>
+          <input type="text" id="test-selector" class="form-control font-monospace"
+                 value="{{ competitor.price_selector or '' }}"
+                 placeholder="ex: .product-new-price">
+        </div>
+        <div class="d-flex align-items-center gap-3">
+          <button type="button" class="btn btn-soft btn-pill" id="btn-test">
+            <i class="fas fa-flask me-1"></i> Testeaza
+          </button>
+          <div id="test-result"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Stats + Scraper ── -->
+  <div class="col-lg-5">
+
+    <div class="card mb-4">
+      <div class="card-header">Statistici produse</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <tbody>
+            <tr>
+              <td class="ps-3 text-muted">Total produse importate</td>
+              <td class="pe-3 text-end fw-bold">{{ stats.total }}</td>
+            </tr>
+            <tr>
+              <td class="ps-3 text-muted">Produse cu URL setat</td>
+              <td class="pe-3 text-end fw-bold">
+                {{ stats.cu_url }}
+                {% if stats.total > 0 %}
+                  <small class="text-muted fw-normal">
+                    ({{ "%.0f"|format(stats.cu_url / stats.total * 100) }}%)
+                  </small>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td class="ps-3 text-muted">Produse cu pret</td>
+              <td class="pe-3 text-end fw-bold">{{ stats.cu_pret }}</td>
+            </tr>
+            <tr>
+              <td class="ps-3 text-muted">Produse cu alerta pret activa</td>
+              <td class="pe-3 text-end fw-bold">
+                {% if stats.cu_alerta > 0 %}
+                  <span class="text-warning">{{ stats.cu_alerta }}</span>
+                {% else %}
+                  {{ stats.cu_alerta }}
+                {% endif %}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Actualizare preturi — Scraper</div>
+      <div class="card-body">
+        {% if not competitor.price_selector %}
+          <div class="alert alert-warning mb-3 py-2">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            Selectorul CSS nu este configurat. Seteaza-l mai intai.
+          </div>
+        {% elif stats.cu_url == 0 %}
+          <div class="alert alert-info mb-3 py-2">
+            <i class="fas fa-info-circle me-1"></i>
+            Niciun produs nu are URL setat. Importa un CSV cu coloana URL.
+          </div>
+        {% else %}
+          <p class="text-muted small mb-3">
+            Va procesa <strong>{{ stats.cu_url }}</strong> produse cu URL setat,
+            va extrage pretul folosind selectorul CSS si va actualiza baza de date.
+            Preturile modificate sunt salvate in istoricul de preturi.
+          </p>
+        {% endif %}
+
+        <button type="button" class="btn btn-primary btn-pill w-100" id="btn-scrape-all"
+                {% if not competitor.price_selector or stats.cu_url == 0 %}disabled{% endif %}>
+          <i class="fas fa-sync-alt me-1"></i> Ruleaza scraper
+        </button>
+
+        <div id="scrape-progress" class="mt-3" style="display:none;">
+          <div class="progress mb-2" style="height:6px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                 style="width:100%"></div>
+          </div>
+          <small class="text-muted">Se proceseaza {{ stats.cu_url }} produse...</small>
+        </div>
+
+        <div id="scrape-result" class="mt-3"></div>
+      </div>
+    </div>
+
+    <div class="card mt-4">
+      <div class="card-header">Linkuri rapide</div>
+      <div class="card-body d-flex flex-column gap-2">
+        <a href="{{ url_for('products.list_view', competitor=competitor.internal_code) }}"
+           class="btn btn-soft btn-pill btn-sm">
+          <i class="fas fa-list me-1"></i> Produse {{ competitor.internal_code }}
+        </a>
+        <a href="{{ url_for('import_export.import_view') }}"
+           class="btn btn-soft btn-pill btn-sm">
+          <i class="fas fa-upload me-1"></i> Import CSV nou
+        </a>
+        <a href="{{ url_for('import_export.export_view') }}?competitor_code={{ competitor.internal_code }}"
+           class="btn btn-soft btn-pill btn-sm">
+          <i class="fas fa-download me-1"></i> Export CSV
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const competitorCode = {{ competitor.internal_code | tojson }};
+
+// ── Test selector ──────────────────────────────────────────
+document.getElementById('btn-test').addEventListener('click', async function() {
+  const url      = document.getElementById('test-url').value.trim();
+  const selector = document.getElementById('test-selector').value.trim()
+                   || document.getElementById('price_selector').value.trim();
+  const result   = document.getElementById('test-result');
+
+  if (!url)      { result.innerHTML = '<span class="text-warning">Introdu un URL de produs.</span>'; return; }
+  if (!selector) { result.innerHTML = '<span class="text-warning">Introdu sau salveaza un selector CSS.</span>'; return; }
+
+  this.disabled = true;
+  this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Se testeaza...';
+  result.innerHTML = '';
+
+  try {
+    const resp = await fetch(`/competitors/${competitorCode}/test-selector`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url, selector}),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      result.innerHTML = `
+        <span class="text-success fw-semibold">
+          <i class="fas fa-check-circle me-1"></i>
+          Pret extras: ${data.price.toFixed(2)} lei
+        </span>`;
+    } else {
+      result.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>${data.error}</span>`;
+    }
+  } catch(e) {
+    result.innerHTML = `<span class="text-danger">Eroare retea: ${e.message}</span>`;
+  } finally {
+    this.disabled = false;
+    this.innerHTML = '<i class="fas fa-flask me-1"></i> Testeaza';
+  }
+});
+
+// ── Scrape all ─────────────────────────────────────────────
+document.getElementById('btn-scrape-all')?.addEventListener('click', async function() {
+  const progress = document.getElementById('scrape-progress');
+  const result   = document.getElementById('scrape-result');
+  this.disabled  = true;
+  progress.style.display = '';
+  result.innerHTML = '';
+
+  try {
+    const resp = await fetch(`/competitors/${competitorCode}/scrape`, {method: 'POST'});
+    const data = await resp.json();
+    if (data.ok) {
+      result.innerHTML = `
+        <div class="alert alert-success mb-0 py-2">
+          <i class="fas fa-check me-1"></i>
+          <strong>${data.updated}</strong> preturi actualizate
+          ${data.errors  ? `&nbsp;·&nbsp;<strong class="text-danger">${data.errors} erori</strong>` : ''}
+          ${data.alerte  ? `&nbsp;·&nbsp;<strong class="text-warning">${data.alerte} alerte</strong>` : ''}
+        </div>`;
+    } else {
+      result.innerHTML = `<div class="alert alert-danger mb-0 py-2">${data.error}</div>`;
+    }
+  } catch(e) {
+    result.innerHTML = `<div class="alert alert-danger mb-0 py-2">Eroare retea: ${e.message}</div>`;
+  } finally {
+    this.disabled = false;
+    progress.style.display = 'none';
+  }
+});
+</script>
+{% endblock %}

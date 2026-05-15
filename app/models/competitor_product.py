@@ -13,8 +13,12 @@ class CompetitorProduct(db.Model):
     pret = db.Column(db.Float, nullable=True)
     brand = db.Column(db.String(120), nullable=True, index=True)
     descriere = db.Column(db.Text, nullable=True)
+    url = db.Column(db.Text, nullable=True)
     asociere = db.Column(db.Text, nullable=True, default="")
-    pret_preluat = db.Column(db.Float, nullable=True)  # pret preluat manual de la produsul asociat
+    pret_alerta = db.Column(db.Float, nullable=True)  # prag de alerta — notifica cand pret <= pret_alerta
+    pret_preluat = db.Column(db.Float, nullable=True)
+    pret_preluat_sursa = db.Column(db.String(50), nullable=True)
+    pret_preluat_asociat_id = db.Column(db.Integer, nullable=True)  # id-ul exact al produsului asociat sursa
     categorie = db.Column(db.String(120), nullable=True, index=True)
     imported_at = db.Column(db.DateTime, nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -29,8 +33,11 @@ class CompetitorProduct(db.Model):
             "sku": self.sku,
             "title": self.title,
             "pret": self.pret,
+            "pret_preluat": self.pret_preluat,
+            "pret_preluat_sursa": self.pret_preluat_sursa,
             "brand": self.brand,
             "descriere": self.descriere,
+            "url": self.url,
             "asociere": self.asociere or "",
             "imported_at": self.imported_at.isoformat() if self.imported_at else None,
         }

@@ -1,10 +1,23 @@
 {% extends "base.html" %}
 
-{% block title %}Import CSV | Scan Pret{% endblock %}
+{% block title %}Import | Scan Pret{% endblock %}
 
 {% block content %}
 <div class="card">
-  <div class="card-header">Import CSV</div>
+  <div class="card-header p-0">
+    <ul class="nav nav-tabs card-header-tabs px-3" style="border-bottom:0;">
+      <li class="nav-item">
+        <a class="nav-link active" href="{{ url_for('import_export.import_view') }}">
+          <i class="fas fa-file-csv me-1"></i>Import CSV
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('scraping.index') }}">
+          <i class="fas fa-spider me-1"></i>Scraping Web
+        </a>
+      </li>
+    </ul>
+  </div>
   <div class="card-body">
 
     <!-- PASUL 1: Upload -->
@@ -84,6 +97,7 @@ const FIELDS = {
   'brand':     { label: 'Brand / Producator', required: false },
   'descriere': { label: 'Descriere',          required: false },
   'categorie': { label: 'Categorie',          required: false },
+  'url':       { label: 'URL produs',         required: false },
 };
 
 const KEYWORDS = {
@@ -93,6 +107,7 @@ const KEYWORDS = {
   'brand':     ['brand','marca','manufacturer','producator'],
   'descriere': ['descriere','description','details'],
   'categorie': ['categorie','category','cat','tip','type'],
+  'url':       ['url','link','href','product_url','page_url'],
 };
 
 let csvColumns = [];

@@ -5,7 +5,7 @@ from app.extensions import db
 from app.models.ai_config import AIConfig
 from app.models.competitor import Competitor
 from app.models.competitor_product import CompetitorProduct
-from app.services.association_service import find_candidates, sync_pret_preluat
+from app.services.association_service import find_candidates
 from app.services.ai_service import build_prompt, call_ai, parse_ai_response
 from app.services.notification_service import create_notification
 from app.utils.logging_helpers import audit
@@ -79,7 +79,6 @@ def associate_confirm(product_id):
             current.append(mid)
 
     source.asociere = ";".join(current)
-    sync_pret_preluat(source)
     db.session.commit()
 
     create_notification(

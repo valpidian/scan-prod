@@ -38,8 +38,15 @@ def create_app(config_object=Config):
 
 
 def register_template_filters(app):
-    import re
+    import re, json
     from markupsafe import Markup, escape
+
+    @app.template_filter('from_json')
+    def from_json_filter(value):
+        try:
+            return json.loads(value or '[]')
+        except Exception:
+            return []
 
     @app.template_filter('highlight')
     def highlight_filter(text, query):
@@ -64,6 +71,7 @@ def register_blueprints(app):
     from app.routes.products import bp as products_bp
     from app.routes.search import bp as search_bp
     from app.routes.search_config import bp as search_config_bp
+    from app.routes.scraping import bp as scraping_bp
 
     app.register_blueprint(competitors_bp, url_prefix="/competitors")
     app.register_blueprint(cleanup_bp, url_prefix="/cleanup")
@@ -74,6 +82,7 @@ def register_blueprints(app):
     app.register_blueprint(search_config_bp, url_prefix="/search-config")
     app.register_blueprint(ai_bp, url_prefix="/ai")
     app.register_blueprint(notifications_bp, url_prefix="/notifications")
+    app.register_blueprint(scraping_bp, url_prefix="/scraping")
 
 
 def register_error_handlers(app):
@@ -111,10 +120,10 @@ def register_context_processors(app):
             },
             {
                 "number": 2,
-                "title": "Import CSV",
-                "subtitle": "Incarcare fisier competitor",
+                "title": "Import / Scraping",
+                "subtitle": "CSV sau scraping web",
                 "url": url_for("import_export.import_view"),
-                "endpoints": {"import_export.import_view"},
+                "endpoints": {"import_export.import_view", "scraping.index", "scraping.config_view"},
             },
             {
                 "number": 3,

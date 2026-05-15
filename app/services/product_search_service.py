@@ -28,6 +28,10 @@ def build_query(filters):
         )
 
     sort_column = getattr(CompetitorProduct, sort, CompetitorProduct.title)
+    if sort == 'cod_competitor':
+        sort_column = CompetitorProduct.cod_competitor
+    elif sort == 'asociere':
+        sort_column = CompetitorProduct.asociere
     if direction == "desc":
         sort_column = sort_column.desc()
     else:

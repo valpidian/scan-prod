@@ -33,31 +33,6 @@
     </div>
   </section>
 
-  <!-- Competitori -->
-  <section class="sidebar-card">
-    <div class="sidebar-collapse-head" onclick="toggleSection('competitors')">
-      <h2 class="h6 mb-0">Competitori</h2>
-      <i class="fas fa-chevron-down sidebar-chevron" id="chevron-competitors"></i>
-    </div>
-    <div class="sidebar-collapse-body" id="section-competitors">
-      <a class="sidebar-cta mt-2" href="{{ url_for('competitors.index') }}">
-        Adauga un competitor nou
-      </a>
-      {% if sidebar_competitors %}
-        <div class="competitor-list mt-2">
-          {% for competitor in sidebar_competitors[:5] %}
-            <a class="competitor-item" href="{{ url_for('competitors.index') }}">
-              <span>{{ competitor.internal_code }}</span>
-              <small>{{ competitor.display_name }}</small>
-            </a>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p class="text-muted small mb-0 mt-2">Nu exista competitori inca.</p>
-      {% endif %}
-    </div>
-  </section>
-
   <!-- Notificari -->
   <section class="sidebar-card">
     <div class="sidebar-collapse-head" onclick="toggleSection('notifications')">
@@ -155,7 +130,7 @@ function toggleSection(id) {
 // Restaureaza starea la incarcare
 document.addEventListener('DOMContentLoaded', function() {
   const state = getSavedState();
-  ['workflow', 'competitors', 'notifications'].forEach(id => {
+  ['workflow', 'notifications'].forEach(id => {
     if (state[id] === 'collapsed') {
       const body = document.getElementById(`section-${id}`);
       const chevron = document.getElementById(`chevron-${id}`);

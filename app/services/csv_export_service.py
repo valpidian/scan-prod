@@ -18,7 +18,7 @@ def export_competitor_products(competitor_code, export_folder):
     with export_path.open("w", encoding="utf-8", newline="") as csv_file:
         writer = csv.DictWriter(
             csv_file,
-            fieldnames=["id", "cod_competitor", "sku", "title", "pret", "brand", "descriere", "asociere"],
+            fieldnames=["id", "cod_competitor", "sku", "title", "pret", "pret_preluat", "pret_preluat_sursa", "brand", "descriere", "url", "asociere", "imported_at"],
         )
         writer.writeheader()
         for row in rows:

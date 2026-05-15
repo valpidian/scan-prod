@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Asocieri excluse | Scan Pret{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-3">
+      <span>Registru asocieri excluse</span>
+      <span class="badge bg-secondary">{{ exclusions|length }} total</span>
+    </div>
+    <a href="{{ url_for('products.list_view') }}" class="btn btn-sm btn-soft btn-pill">
+      <i class="fas fa-arrow-left me-1"></i> Inapoi la produse
+    </a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Produs principal</th>
+          <th></th>
+          <th>Produs exclus</th>
+          <th>Data excluderii</th>
+          <th style="width:130px;">Actiuni</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for excl in exclusions %}
+          {% set p1 = products_map.get(excl.product_id) %}
+          {% set p2 = products_map.get(excl.excluded_product_id) %}
+          <tr>
+            <td>
+              {% if p1 %}
+                <small class="text-muted d-block">
+                  #{{ p1.id }} &middot;
+                  <span class="association-pill">{{ p1.cod_competitor }}</span>
+                  {% if competitors_map.get(p1.cod_competitor) %}
+                    {{ competitors_map[p1.cod_competitor] }}
+                  {% endif %}
+                </small>
+                <span class="fw-semibold">{{ p1.title[:60] }}{% if p1.title|length > 60 %}...{% endif %}</span>
+                <code class="small d-block text-muted">{{ p1.sku }}</code>
+                {% if p1.pret %}
+                  <span class="badge bg-light text-dark border">{{ "%.2f"|format(p1.pret) }} lei</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted fst-italic">#{{ excl.product_id }} (produs sters)</span>
+              {% endif %}
+            </td>
+            <td class="text-center text-muted align-middle">
+              <i class="fas fa-ban text-danger"></i>
+            </td>
+            <td>
+              {% if p2 %}
+                <small class="text-muted d-block">
+                  #{{ p2.id }} &middot;
+                  <span class="association-pill">{{ p2.cod_competitor }}</span>
+                  {% if competitors_map.get(p2.cod_competitor) %}
+                    {{ competitors_map[p2.cod_competitor] }}
+                  {% endif %}
+                </small>
+                <span class="fw-semibold">{{ p2.title[:60] }}{% if p2.title|length > 60 %}...{% endif %}</span>
+                <code class="small d-block text-muted">{{ p2.sku }}</code>
+                {% if p2.pret %}
+                  <span class="badge bg-light text-dark border">{{ "%.2f"|format(p2.pret) }} lei</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted fst-italic">#{{ excl.excluded_product_id }} (produs sters)</span>
+              {% endif %}
+            </td>
+            <td class="align-middle">
+              <small class="text-muted">{{ excl.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+            </td>
+            <td class="align-middle">
+              <form method="post"
+                    action="{{ url_for('products.undo_exclusion', exclusion_id=excl.id) }}"
+                    onsubmit="return confirm('Anulezi excluderea acestei asocieri?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-soft btn-pill">
+                  <i class="fas fa-undo me-1"></i> Anuleaza
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-5">
+              <i class="fas fa-check-circle text-success me-2"></i>
+              Nicio asociere exclusa inca.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

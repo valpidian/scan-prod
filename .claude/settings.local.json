@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python migrate_db.py)",
+      "Bash(python -c ' *)",
+      "Bash(cd /d d:\\\\CODEX\\\\scan-pret)",
+      "Bash(Select-String -NotMatch \"UserWarning|warnings.warn|flask_limiter\")",
+      "Bash(python -c \"import sys; [print\\(l\\) for l in sys.stdin if 'UserWarning' not in l and 'warnings.warn' not in l and 'flask_limiter' not in l]\")",
+      "Bash(pip show *)",
+      "Bash(python -c \"import sys; [print\\(l\\) for l in sys.stdin if 'UserWarning' not in l and 'warnings' not in l and 'flask_limiter' not in l]\")",
+      "Bash(xargs grep -l \"scraping\")"
+    ]
+  }
+}

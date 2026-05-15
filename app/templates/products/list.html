@@ -28,6 +28,7 @@
           <option value="title" {% if filters.sort=='title' %}selected{% endif %}>Titlu</option>
           <option value="sku" {% if filters.sort=='sku' %}selected{% endif %}>SKU</option>
           <option value="pret" {% if filters.sort=='pret' %}selected{% endif %}>Pret</option>
+          <option value="pret_preluat" {% if filters.sort=='pret_preluat' %}selected{% endif %}>Pret preluat</option>
           <option value="brand" {% if filters.sort=='brand' %}selected{% endif %}>Brand</option>
         </select>
       </div>
@@ -61,6 +62,9 @@
     <button class="btn btn-primary btn-pill btn-sm" id="btn-ai-batch">
       <i class="fas fa-robot me-1"></i> Procesare AI in masa
     </button>
+    <button class="btn btn-danger btn-pill btn-sm" id="btn-bulk-delete">
+      <i class="fas fa-trash me-1"></i> Sterge selectia
+    </button>
     <button class="btn btn-soft btn-pill btn-sm" id="btn-deselect-all">
       <i class="fas fa-times me-1"></i> Deselecteaza tot
     </button>
@@ -81,22 +85,46 @@
       <span class="badge bg-secondary">{{ pagination.total }} total</span>
       <span class="text-muted small">pagina {{ pagination.page }}/{{ pagination.pages }}</span>
     </div>
-    <a class="btn btn-sm btn-primary btn-pill" href="{{ url_for('import_export.import_view') }}">
-      <i class="fas fa-upload me-1"></i> Import
-    </a>
+    <div class="d-flex gap-2">
+      <a class="btn btn-sm btn-soft btn-pill" href="{{ url_for('products.excluded_list') }}">
+        <i class="fas fa-ban me-1"></i> Excluderi
+      </a>
+      <a class="btn btn-sm btn-primary btn-pill" href="{{ url_for('import_export.import_view') }}">
+        <i class="fas fa-upload me-1"></i> Import
+      </a>
+    </div>
   </div>
   <div class="table-responsive">
     <table class="table table-hover mb-0" id="products-table">
       <thead>
         <tr>
           <th style="width:36px;"></th>
-          <th>ID</th>
-          <th>Competitor</th>
-          <th>SKU</th>
-          <th>Titlu</th>
-          <th>Pret</th>
-          <th>Brand</th>
-          <th>Asociere</th>
+          {% set sortable = [
+            ('id', 'ID'),
+            ('cod_competitor', 'Competitor'),
+            ('sku', 'SKU'),
+            ('title', 'Titlu'),
+            ('pret', 'Pret'),
+            ('pret_preluat', 'Pret preluat'),
+            ('brand', 'Brand'),
+            ('asociere', 'Asociere'),
+          ] %}
+          {% for col, label in sortable %}
+            {% set is_active = filters.sort == col %}
+            {% set next_dir = 'desc' if (is_active and filters.direction == 'asc') else 'asc' %}
+            <th>
+              <a href="{{ url_for('products.list_view', sort=col, direction=next_dir, page=1, per_page=per_page, competitor=filters.competitor, q=filters.q) }}"
+                 class="sort-header {% if is_active %}sort-active{% endif %}">
+                {{ label }}
+                {% if is_active %}
+                  <i class="fas fa-sort-{{ 'down' if filters.direction == 'desc' else 'up' }} ms-1"></i>
+                {% else %}
+                  <i class="fas fa-sort ms-1 sort-icon-idle"></i>
+                {% endif %}
+              </a>
+            </th>
+          {% endfor %}
+          <th>Sursa</th>
           <th style="width:110px;">Actiuni</th>
         </tr>
       </thead>
@@ -116,6 +144,13 @@
           <td><code class="small">{{ product.sku }}</code></td>
           <td><span id="display-title-{{ product.id }}">{{ product.title }}</span></td>
           <td><span id="display-pret-{{ product.id }}">{{ product.pret or '—' }}</span></td>
+          <td>
+            {% if product.pret_preluat %}
+              <span class="badge bg-info">{{ "%.2f"|format(product.pret_preluat) }} lei</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
           <td><span id="display-brand-{{ product.id }}">{{ product.brand or '—' }}</span></td>
           <td>
             <span id="display-asociere-{{ product.id }}">
@@ -124,13 +159,20 @@
                   {{ product.asociere.split(';')|select|list|length }} asociat(e)
                   <i class="fas fa-chevron-down ms-1" style="font-size:0.65rem;"></i>
                 </span>
-                {% if product.pret_preluat %}
-                  <span class="badge bg-info ms-1" title="Pret preluat">{{ "%.2f"|format(product.pret_preluat) }} lei</span>
-                {% endif %}
               {% else %}
                 <span class="text-muted">—</span>
               {% endif %}
             </span>
+          </td>
+          <td>
+            {% if product.pret_preluat_sursa %}
+              <span class="association-pill">{{ product.pret_preluat_sursa }}</span>
+              {% if competitor_lookup.get(product.pret_preluat_sursa) %}
+                <small class="d-block text-muted mt-1">{{ competitor_lookup.get(product.pret_preluat_sursa) }}</small>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
           </td>
           <td>
             <div class="d-flex gap-1">
@@ -142,6 +184,16 @@
                       onclick="toggleEdit({{ product.id }})">
                 <i class="fas fa-pen"></i>
               </button>
+              <button type="button" class="action-btn action-btn-history" title="Istoric preturi"
+                      onclick="toggleHistory({{ product.id }})">
+                <i class="fas fa-chart-line"></i>
+              </button>
+              {% if product.url %}
+              <button type="button" class="action-btn btn-scrape-product" title="Actualizeaza pretul"
+                      data-id="{{ product.id }}">
+                <i class="fas fa-sync-alt"></i>
+              </button>
+              {% endif %}
               <form method="post" action="{{ url_for('products.delete', product_id=product.id) }}"
                     style="display:inline;"
                     onsubmit="return confirm('Stergi produsul #{{ product.id }}?')">
@@ -153,9 +205,19 @@
             </div>
           </td>
         </tr>
+        <!-- Rand istoric preturi -->
+        <tr id="history-row-{{ product.id }}" style="display:none;">
+          <td colspan="11" class="p-0">
+            <div class="history-panel" id="history-panel-{{ product.id }}">
+              <div class="text-center py-2 text-muted small">
+                <i class="fas fa-spinner fa-spin"></i> Se incarca...
+              </div>
+            </div>
+          </td>
+        </tr>
         <!-- Rand asocieri expandabil -->
         <tr id="asocieri-row-{{ product.id }}" style="display:none;">
-          <td colspan="9" class="p-0">
+          <td colspan="11" class="p-0">
             <div class="asocieri-panel" id="asocieri-panel-{{ product.id }}">
               <div class="text-center py-2 text-muted small">
                 <i class="fas fa-spinner fa-spin"></i> Se incarca...
@@ -165,7 +227,7 @@
         </tr>
         <!-- Rand editare inline -->
         <tr id="edit-row-{{ product.id }}" class="edit-row" style="display:none;">
-          <td colspan="9" class="p-0">
+          <td colspan="11" class="p-0">
             <div class="edit-panel">
               <div class="row g-3">
                 <div class="col-md-4">
@@ -184,13 +246,21 @@
                   <label class="edit-label">Pret</label>
                   <input type="number" step="0.01" class="form-control form-control-sm" id="edit-pret-{{ product.id }}" value="{{ product.pret or '' }}">
                 </div>
-                <div class="col-md-8">
+                <div class="col-md-6">
                   <label class="edit-label">Descriere</label>
                   <input type="text" class="form-control form-control-sm" id="edit-descriere-{{ product.id }}" value="{{ product.descriere or '' }}">
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                   <label class="edit-label">Asociere</label>
                   <input type="text" class="form-control form-control-sm" id="edit-asociere-{{ product.id }}" value="{{ product.asociere or '' }}">
+                </div>
+                <div class="col-md-3">
+                  <label class="edit-label">Alerta pret <span class="text-muted fw-normal">(notifica ≤ valoare)</span></label>
+                  <input type="number" step="0.01" class="form-control form-control-sm" id="edit-pret-alerta-{{ product.id }}" value="{{ product.pret_alerta or '' }}" placeholder="ex: 150.00">
+                </div>
+                <div class="col-md-12">
+                  <label class="edit-label">URL produs</label>
+                  <input type="url" class="form-control form-control-sm" id="edit-url-{{ product.id }}" value="{{ product.url or '' }}" placeholder="https://...">
                 </div>
               </div>
               <div class="d-flex gap-2 mt-3">
@@ -204,7 +274,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="9" class="text-center text-muted py-4">Nu exista date.</td></tr>
+        <tr><td colspan="11" class="text-center text-muted py-4">Nu exista date.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -237,6 +307,7 @@
 {% endif %}
 
 <style>
+.history-panel { padding:0.75rem 1.2rem; background:rgba(13,110,253,0.03); border-top:2px solid rgba(13,110,253,0.18); border-bottom:2px solid rgba(13,110,253,0.18); animation:slideDown 0.18s ease; }
 .asocieri-panel { padding:0.75rem 1.2rem; background:rgba(25,135,84,0.04); border-top:2px solid rgba(25,135,84,0.2); border-bottom:2px solid rgba(25,135,84,0.2); animation:slideDown 0.18s ease; }
 .asocieri-panel table { margin-bottom:0; }
 
@@ -244,6 +315,15 @@
 .edit-label { display:block; font-size:0.72rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; }
 @keyframes slideDown { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
 tr.selected-row { background:rgba(47,128,237,0.07) !important; }
+
+.sort-header {
+  display:inline-flex; align-items:center; gap:4px;
+  color:inherit; text-decoration:none; white-space:nowrap;
+  font-size:0.74rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
+}
+.sort-header:hover { color:var(--accent); }
+.sort-active { color:var(--accent); }
+.sort-icon-idle { opacity:0.3; }
 </style>
 
 <script>
@@ -305,6 +385,38 @@ document.getElementById('btn-ai-batch').addEventListener('click', function() {
   window.location.href = `/products/ai-batch?${[...selectedIds].map(id => `ids=${id}`).join('&')}`;
 });
 
+// ── Stergere in grup ──────────────────────────────────────
+document.getElementById('btn-bulk-delete').addEventListener('click', async function() {
+  if (!selectedIds.size) return;
+  if (!confirm(`Stergi ${selectedIds.size} produse selectate? Actiunea este ireversibila.`)) return;
+  const btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Se sterge...';
+  try {
+    const resp = await fetch('/products/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [...selectedIds] }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      [...selectedIds].forEach(id => {
+        document.getElementById(`row-${id}`)?.remove();
+        document.getElementById(`edit-row-${id}`)?.remove();
+        document.getElementById(`history-row-${id}`)?.remove();
+        document.getElementById(`asocieri-row-${id}`)?.remove();
+      });
+      selectedIds.clear();
+      updateBulkBar();
+    }
+  } catch(err) {
+    alert('Eroare la stergere: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-trash me-1"></i> Sterge selectia';
+  }
+});
+
 // ── Asocieri expandabile ─────────────────────────────────
 document.addEventListener('click', async function(e) {
   const toggle = e.target.closest('.asociere-toggle');
@@ -328,7 +440,9 @@ document.addEventListener('click', async function(e) {
 
   try {
     const resp = await fetch(`/products/${id}/asociate`);
-    const items = await resp.json();
+    const data = await resp.json();
+    const items = data.items;
+    const meta = data.meta || {};
     if (!items.length) {
       panel.innerHTML = '<p class="text-muted small mb-0">Niciun produs asociat gasit.</p>';
     } else {
@@ -337,26 +451,37 @@ document.addEventListener('click', async function(e) {
           <thead class="table-light">
             <tr>
               <th>ID</th><th>Competitor</th><th>SKU</th><th>Titlu</th><th>Brand</th>
-              <th class="text-end">Pret</th><th>URL</th><th>Pret preluat</th>
+              <th class="text-end">Pret</th><th>URL</th><th>Pret preluat</th><th></th>
             </tr>
           </thead>
           <tbody>
-            ${items.map(p => `
-              <tr>
+            ${items.map(p => {
+              const isPretSursa = p.id === meta.pret_preluat_asociat_id;
+              const pretCell = isPretSursa
+                ? `<span class="badge bg-info"><i class="fas fa-check me-1"></i>${parseFloat(p.pret).toFixed(2)} lei</span>`
+                : (p.pret ? `<button type="button" class="btn btn-xs btn-soft btn-pill btn-pret-list"
+                    data-source="${id}" data-asociat="${p.id}" data-pret="${p.pret}">
+                    <i class="fas fa-tag"></i> Preia pret
+                  </button>` : '');
+              return `
+              <tr id="asoc-row-${id}-${p.id}">
                 <td><code class="small">#${p.id}</code></td>
                 <td><small>${p.display_name}</small></td>
                 <td><code class="small">${p.sku}</code></td>
                 <td><small>${p.title.substring(0,60)}${p.title.length>60?'...':''}</small></td>
                 <td><small>${p.brand||'—'}</small></td>
                 <td class="text-end">${p.pret ? `<strong>${parseFloat(p.pret).toFixed(2)} lei</strong>` : '<span class="text-muted">—</span>'}</td>
-                <td><a href="${p.url}" class="btn btn-xs btn-soft btn-pill" title="Deschide produs"><i class="fas fa-external-link-alt"></i></a></td>
+                <td>${p.url ? `<a href="${p.url}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-soft btn-pill" title="Deschide produs"><i class="fas fa-external-link-alt"></i></a>` : '<span class="text-muted">—</span>'}</td>
+                <td>${pretCell}</td>
                 <td>
-                  ${p.pret ? `<button type="button" class="btn btn-xs btn-soft btn-pill btn-pret-list"
-                    data-source="${id}" data-asociat="${p.id}" data-pret="${p.pret}">
-                    <i class="fas fa-tag"></i> Preia pret
-                  </button>` : ''}
+                  <button type="button" class="btn btn-xs btn-soft btn-pill btn-exclude-asoc"
+                    data-source="${id}" data-excluded="${p.id}"
+                    title="Exclude asociere gresita">
+                    <i class="fas fa-ban text-danger"></i>
+                  </button>
                 </td>
-              </tr>`).join('')}
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>`;
       panel.dataset.loaded = '1';
@@ -396,6 +521,41 @@ document.addEventListener('click', async function(e) {
   }
 });
 
+// ── Excludere asociere ───────────────────────────────────
+document.addEventListener('click', async function(e) {
+  const btn = e.target.closest('.btn-exclude-asoc');
+  if (!btn) return;
+  const sourceId = btn.dataset.source;
+  const excludedId = btn.dataset.excluded;
+  if (!confirm('Excludi aceasta asociere? Va fi salvata in registrul de excluderi si nu va mai fi sugerata de AI.')) return;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const resp = await fetch(`/products/${sourceId}/exclude`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({excluded_id: excludedId}),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      const row = document.getElementById(`asoc-row-${sourceId}-${excludedId}`);
+      if (row) {
+        row.style.opacity = '0.3';
+        row.style.transition = 'opacity 0.3s';
+        setTimeout(() => row.remove(), 350);
+      }
+      const panel = document.getElementById(`asocieri-panel-${sourceId}`);
+      if (panel) delete panel.dataset.loaded;
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-ban text-danger"></i>';
+    }
+  } catch(err) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-ban text-danger"></i>';
+  }
+});
+
 function toggleEdit(id) {
   const editRow = document.getElementById(`edit-row-${id}`);
   const editBtn = document.querySelector(`#row-${id} .action-btn-edit`);
@@ -413,12 +573,14 @@ async function saveEdit(id) {
   const status = document.getElementById(`save-status-${id}`);
   const btn = document.querySelector(`#edit-row-${id} .btn-primary`);
   const payload = {
-    sku: document.getElementById(`edit-sku-${id}`).value,
-    title: document.getElementById(`edit-title-${id}`).value,
-    brand: document.getElementById(`edit-brand-${id}`).value,
-    pret: document.getElementById(`edit-pret-${id}`).value,
-    descriere: document.getElementById(`edit-descriere-${id}`).value,
-    asociere: document.getElementById(`edit-asociere-${id}`).value,
+    sku:         document.getElementById(`edit-sku-${id}`).value,
+    title:       document.getElementById(`edit-title-${id}`).value,
+    brand:       document.getElementById(`edit-brand-${id}`).value,
+    pret:        document.getElementById(`edit-pret-${id}`).value,
+    descriere:   document.getElementById(`edit-descriere-${id}`).value,
+    asociere:    document.getElementById(`edit-asociere-${id}`).value,
+    pret_alerta: document.getElementById(`edit-pret-alerta-${id}`).value,
+    url:         document.getElementById(`edit-url-${id}`).value,
   };
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Se salveaza...';
@@ -445,6 +607,100 @@ async function saveEdit(id) {
     btn.innerHTML = '<i class="fas fa-save me-1"></i> Salveaza';
   }
 }
+
+// ── Istoric preturi ───────────────────────────────────────
+const historyCharts = {};
+
+function toggleHistory(id) {
+  const row = document.getElementById(`history-row-${id}`);
+  const panel = document.getElementById(`history-panel-${id}`);
+  const isOpen = row.style.display !== 'none';
+  if (isOpen) { row.style.display = 'none'; return; }
+  row.style.display = 'table-row';
+  if (panel.dataset.loaded) return;
+  loadHistory(id, panel);
+}
+
+async function loadHistory(id, panel) {
+  try {
+    const resp = await fetch(`/products/${id}/price-history`);
+    const history = await resp.json();
+    if (!history.length) {
+      panel.innerHTML = '<p class="text-muted small mb-0 py-1">Niciun istoric de pret inregistrat inca.</p>';
+      return;
+    }
+    const colors = { import: '#0d6efd', scraper: '#fd7e14', manual: '#198754' };
+    const canvasId = `chart-${id}`;
+    panel.innerHTML = `<div style="max-height:220px;"><canvas id="${canvasId}"></canvas></div>`;
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    if (historyCharts[id]) historyCharts[id].destroy();
+    historyCharts[id] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: history.map(h => h.recorded_at),
+        datasets: [{
+          label: 'Pret (lei)',
+          data: history.map(h => h.pret),
+          borderColor: '#0d6efd',
+          backgroundColor: 'rgba(13,110,253,0.08)',
+          tension: 0.3, fill: true, pointRadius: 5,
+          pointBackgroundColor: history.map(h => colors[h.sursa] || '#6c757d'),
+          pointBorderColor: '#fff', pointBorderWidth: 2,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.parsed.y.toFixed(2)} lei (${history[ctx.dataIndex].sursa})`,
+            },
+          },
+        },
+        scales: {
+          y: { beginAtZero: false, ticks: { callback: v => v + ' lei' } },
+          x: { ticks: { maxRotation: 30, font: { size: 10 } } },
+        },
+      },
+    });
+    panel.dataset.loaded = '1';
+  } catch(err) {
+    panel.innerHTML = `<p class="text-danger small mb-0">Eroare: ${err.message}</p>`;
+  }
+}
+
+// ── Scrape produs individual ──────────────────────────────
+document.addEventListener('click', async function(e) {
+  const btn = e.target.closest('.btn-scrape-product');
+  if (!btn) return;
+  const id = btn.dataset.id;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const resp = await fetch(`/products/${id}/scrape`, {method: 'POST'});
+    const data = await resp.json();
+    if (data.ok) {
+      if (data.changed) {
+        document.getElementById(`display-pret-${id}`).textContent = parseFloat(data.pret).toFixed(2);
+        const panel = document.getElementById(`history-panel-${id}`);
+        if (panel) { delete panel.dataset.loaded; }
+        btn.innerHTML = '<i class="fas fa-check text-success"></i>';
+      } else {
+        btn.innerHTML = '<i class="fas fa-check text-muted"></i>';
+      }
+    } else {
+      btn.title = data.error || 'Eroare scraping';
+      btn.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i>';
+    }
+  } catch(err) {
+    btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+  } finally {
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync-alt"></i>'; }, 2500);
+  }
+});
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 
 {% endblock %}

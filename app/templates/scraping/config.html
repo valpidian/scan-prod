@@ -1,0 +1,1006 @@
+{% extends "base.html" %}
+{% block title %}Scraping {{ competitor.internal_code }} | Scan Pret{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  <a href="{{ url_for('scraping.index') }}" class="btn btn-soft btn-sm btn-pill">
+    <i class="fas fa-arrow-left"></i>
+  </a>
+  <h4 class="mb-0">
+    <i class="fas fa-spider me-2"></i>Scraping —
+    <code>{{ competitor.internal_code }}</code>
+    <small class="text-muted fw-normal ms-1">{{ competitor.display_name }}</small>
+  </h4>
+  <div class="ms-auto d-flex gap-2">
+    {% if stats.total > 0 %}
+      <span class="badge bg-warning text-dark align-self-center">{{ stats.pending }} pending</span>
+      <span class="badge bg-success align-self-center">{{ stats.scraped }} scraped</span>
+      {% if stats.error %}<span class="badge bg-danger align-self-center">{{ stats.error }} erori</span>{% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{# ── Bara de urgenta: vizibila pe orice tab cand un job ruleaza ── #}
+<div id="emergency-stop-bar" class="alert alert-danger d-flex align-items-center gap-3 mb-3 py-2 d-none">
+  <div class="spinner-border spinner-border-sm text-danger flex-shrink-0" role="status"></div>
+  <div class="flex-grow-1 small">
+    <strong>Job scraping in executie</strong>
+    <span id="emergency-counter" class="ms-2 text-muted"></span>
+  </div>
+  <div class="progress flex-shrink-0" style="width:120px;height:6px;">
+    <div id="progress-bar-emergency" class="progress-bar bg-danger progress-bar-striped progress-bar-animated" style="width:0%"></div>
+  </div>
+  <button type="button" class="btn btn-danger btn-sm btn-pill flex-shrink-0 fw-bold"
+          onclick="stopJob()">
+    <i class="fas fa-stop me-1"></i>OPRESTE
+  </button>
+</div>
+
+<ul class="nav nav-tabs mb-0" id="scrapeTabs" role="tablist">
+  <li class="nav-item">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-sitemap" type="button">
+      <i class="fas fa-sitemap me-1"></i>1. Sitemap
+      {% if stats.total > 0 %}<span class="badge bg-secondary ms-1">{{ stats.total }}</span>{% endif %}
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-urls" type="button">
+      <i class="fas fa-list me-1"></i>2. URL-uri
+      {% if stats.pending > 0 %}<span class="badge bg-warning text-dark ms-1">{{ stats.pending }}</span>{% endif %}
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-selectors" type="button">
+      <i class="fas fa-code me-1"></i>3. Selectori CSS
+      {% if config and config.sel_title %}<i class="fas fa-check-circle text-success ms-1" style="font-size:.75rem;"></i>{% endif %}
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-run" type="button">
+      <i class="fas fa-play me-1"></i>4. Scraping
+      {% if job and job.status == 'running' %}
+        <span class="badge bg-success ms-1 blink-badge">LIVE</span>
+      {% endif %}
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content border border-top-0 rounded-bottom bg-white p-3">
+
+  {# ── TAB 1: SITEMAP ──────────────────────────────────────────────────── #}
+  <div class="tab-pane fade show active" id="tab-sitemap">
+    <p class="text-muted small mb-3">Introdu URL-ul sitemap-ului XML al competitorului. Sistemul va extrage automat toate URL-urile de produse.</p>
+    <div class="row g-3 align-items-end" style="max-width:900px;">
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">URL Sitemap XML</label>
+        <input type="text" id="sitemap-url" class="form-control"
+               value="{{ config.sources | from_json | selectattr('type','eq','sitemap') | map(attribute='url') | first | default('') if config and config.sources else '' }}"
+               placeholder="https://competitor.ro/sitemap.xml">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Filtru URL <span class="text-muted">(regex, optional)</span></label>
+        <input type="text" id="url-filter" class="form-control"
+               value="{{ config.url_filter or '' }}"
+               placeholder="ex: /produs/|/p/">
+      </div>
+      <div class="col-md-3">
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-primary btn-pill" id="btn-analyze" onclick="analyzeSitemap(false)">
+            <i class="fas fa-search me-1"></i>Analizeaza
+          </button>
+          {% if stats.total > 0 %}
+          <button type="button" class="btn btn-outline-warning btn-pill" onclick="analyzeSitemap(true)" title="Reimporta (sterge existente)">
+            <i class="fas fa-sync"></i>
+          </button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div id="analyze-result" class="mt-3"></div>
+
+    {% if stats.total > 0 %}
+    <div class="alert alert-success mt-3 mb-0 py-2 small">
+      <i class="fas fa-check-circle me-2"></i>
+      <strong>{{ stats.total }}</strong> URL-uri in baza de date —
+      <a href="#tab-urls" onclick="switchTab('tab-urls')" class="fw-bold">Vezi tabelul URL-uri →</a>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── TAB 2: URL-URI ──────────────────────────────────────────────────── #}
+  <div class="tab-pane fade" id="tab-urls">
+    {% if stats.total == 0 %}
+      <div class="alert alert-warning mb-0">Nu exista URL-uri. Mergi la tab-ul <strong>Sitemap</strong> si analizeaza mai intai.</div>
+    {% else %}
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div class="d-flex gap-2 align-items-center">
+          <select id="filter-status" class="form-select form-select-sm" style="width:130px;" onchange="loadUrls(1)">
+            <option value="">Toate ({{ stats.total }})</option>
+            <option value="pending">Pending ({{ stats.pending }})</option>
+            <option value="scraped">Scraped ({{ stats.scraped }})</option>
+            <option value="error">Erori ({{ stats.error }})</option>
+          </select>
+        </div>
+        <button type="button" class="btn btn-soft btn-sm btn-pill" onclick="loadUrls(urlsCurrentPage)">
+          <i class="fas fa-sync"></i>
+        </button>
+      </div>
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:40px;">#</th>
+            <th>URL produs</th>
+            <th style="width:90px;">Status</th>
+            <th>Produs asociat</th>
+            <th style="width:110px;">Scraped la</th>
+          </tr>
+        </thead>
+        <tbody id="urls-tbody">
+          <tr><td colspan="5" class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm"></span></td></tr>
+        </tbody>
+      </table>
+      <div id="urls-pagination" class="d-flex justify-content-between align-items-center pt-2 border-top small text-muted mt-1"></div>
+    {% endif %}
+  </div>
+
+  {# ── TAB 3: SELECTORI CSS ────────────────────────────────────────────── #}
+  <div class="tab-pane fade" id="tab-selectors">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <input type="text" id="discover-url" class="form-control form-control-sm" style="max-width:420px;"
+             placeholder="URL produs pentru auto-descoperire selectori...">
+      <button type="button" class="btn btn-soft btn-sm btn-pill" id="btn-discover" onclick="discoverSelectors()">
+        <i class="fas fa-magic me-1"></i>Descopera automat
+      </button>
+    </div>
+    <div id="discover-result" class="d-none mb-3"></div>
+
+    <form method="post" action="{{ url_for('scraping.save_config', code=competitor.internal_code) }}" id="selectors-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="url_filter" id="hidden-url-filter" value="{{ config.url_filter or '' }}">
+      <input type="hidden" name="delay" value="{{ config.delay or 1.0 }}">
+      <input type="hidden" name="timeout" value="{{ config.timeout or 15 }}">
+      <input type="hidden" name="max_retries" value="{{ config.max_retries if config and config.max_retries is not none else 2 }}">
+      <input type="hidden" name="retry_delay" value="{{ config.retry_delay or 5.0 }}">
+      <input type="hidden" name="randomize_delay" value="{{ '1' if not config or config.randomize_delay else '0' }}">
+      <input type="hidden" name="respect_robots" value="{{ '1' if config and config.respect_robots else '0' }}">
+      <input type="hidden" name="user_agent" value="{{ config.user_agent or '' if config else '' }}">
+      <table class="table table-sm mb-3" style="max-width:700px;">
+        <thead class="table-light">
+          <tr><th style="width:140px;">Camp</th><th>Selector CSS</th><th style="width:50px;"></th></tr>
+        </thead>
+        <tbody>
+          {% set fields = [
+            ('sel_title',     'Titlu',     true,  config.sel_title if config else ''),
+            ('sel_sku',       'SKU',       false, config.sel_sku if config else ''),
+            ('sel_pret',      'Pret',      false, config.sel_pret if config else ''),
+            ('sel_brand',     'Brand',     false, config.sel_brand if config else ''),
+            ('sel_descriere', 'Descriere', false, config.sel_descriere if config else ''),
+            ('sel_categorie', 'Categorie', false, config.sel_categorie if config else ''),
+          ] %}
+          {% for name, label, required, val in fields %}
+          <tr>
+            <td>
+              <strong>{{ label }}</strong>
+              {% if required %}<span class="badge bg-danger ms-1" style="font-size:.6rem;">req</span>{% endif %}
+            </td>
+            <td>
+              <input type="text" name="{{ name }}" id="{{ name }}"
+                     class="form-control form-control-sm selector-input"
+                     data-field="{{ name }}" value="{{ val or '' }}"
+                     placeholder="ex: h1.product-title">
+            </td>
+            <td>
+              <button type="button" class="btn btn-outline-secondary btn-sm btn-pill"
+                      onclick="testSingleSelector('{{ name }}')" title="Test">
+                <i class="fas fa-vial"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <button type="submit" class="btn btn-primary btn-pill">
+        <i class="fas fa-save me-1"></i>Salveaza selectori
+      </button>
+    </form>
+  </div>
+
+  {# ── TAB 4: SCRAPING ─────────────────────────────────────────────────── #}
+  <div class="tab-pane fade" id="tab-run">
+
+    <div class="row g-3 mb-3">
+
+      {# ── Parametri anti-block ── #}
+      <div class="col-lg-7">
+        <div class="card border shadow-sm h-100">
+          <div class="card-header bg-light fw-semibold py-2">
+            <i class="fas fa-shield-alt me-2 text-warning"></i>Parametri anti-block
+          </div>
+          <div class="card-body">
+            <form id="antiblock-form" method="post"
+                  action="{{ url_for('scraping.save_config', code=competitor.internal_code) }}"
+                  onsubmit="syncSelectorsToAntiblock()">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {# Copii ascunse ale selectorilor — sincronizate din Tab 3 la submit #}
+              <input type="hidden" name="sel_sku"       id="ab-sel_sku"       value="{{ config.sel_sku or '' if config else '' }}">
+              <input type="hidden" name="sel_title"     id="ab-sel_title"     value="{{ config.sel_title or '' if config else '' }}">
+              <input type="hidden" name="sel_pret"      id="ab-sel_pret"      value="{{ config.sel_pret or '' if config else '' }}">
+              <input type="hidden" name="sel_brand"     id="ab-sel_brand"     value="{{ config.sel_brand or '' if config else '' }}">
+              <input type="hidden" name="sel_descriere" id="ab-sel_descriere" value="{{ config.sel_descriere or '' if config else '' }}">
+              <input type="hidden" name="sel_categorie" id="ab-sel_categorie" value="{{ config.sel_categorie or '' if config else '' }}">
+              <input type="hidden" name="url_filter"    id="ab-url_filter"    value="{{ config.url_filter or '' if config else '' }}">
+
+              <div class="row g-2">
+                <div class="col-sm-4">
+                  <label class="form-label small fw-semibold mb-1">Delay (secunde)</label>
+                  <input type="number" name="delay" id="ab-delay" class="form-control form-control-sm"
+                         step="0.1" min="0.1" max="60"
+                         value="{{ config.delay if config else 1.0 }}"
+                         title="Pauza intre requesturi">
+                </div>
+                <div class="col-sm-4">
+                  <label class="form-label small fw-semibold mb-1">Timeout (secunde)</label>
+                  <input type="number" name="timeout" id="ab-timeout" class="form-control form-control-sm"
+                         step="1" min="5" max="120"
+                         value="{{ config.timeout if config else 15 }}">
+                </div>
+                <div class="col-sm-4">
+                  <label class="form-label small fw-semibold mb-1">Max retries</label>
+                  <input type="number" name="max_retries" id="ab-max_retries" class="form-control form-control-sm"
+                         step="1" min="0" max="10"
+                         value="{{ config.max_retries if config and config.max_retries is not none else 2 }}">
+                </div>
+                <div class="col-sm-4">
+                  <label class="form-label small fw-semibold mb-1">Retry delay (s)</label>
+                  <input type="number" name="retry_delay" id="ab-retry_delay" class="form-control form-control-sm"
+                         step="0.5" min="1" max="120"
+                         value="{{ config.retry_delay if config else 5.0 }}">
+                </div>
+                <div class="col-sm-4 d-flex align-items-center pt-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="randomize_delay"
+                           value="1" id="chk-randomize"
+                           {{ 'checked' if not config or config.randomize_delay else '' }}>
+                    <label class="form-check-label small" for="chk-randomize">
+                      Randomize delay
+                      <span class="text-muted d-block" style="font-size:.7rem;">±50% variatie</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="col-sm-4 d-flex align-items-center pt-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="respect_robots"
+                           value="1" id="chk-robots"
+                           {{ 'checked' if config and config.respect_robots else '' }}>
+                    <label class="form-check-label small" for="chk-robots">
+                      Respect robots.txt
+                      <span class="text-muted d-block" style="font-size:.7rem;">recomandat: dezactivat</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-semibold mb-1">
+                    User-Agent
+                    <span class="text-muted fw-normal">(gol = rotatie automata)</span>
+                  </label>
+                  <textarea name="user_agent" id="ab-user_agent"
+                            class="form-control form-control-sm" rows="2"
+                            placeholder="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36...">{{ config.user_agent or '' if config else '' }}</textarea>
+                </div>
+              </div>
+
+              <div class="mt-3 d-flex gap-2 align-items-center">
+                <button type="submit" class="btn btn-sm btn-primary btn-pill">
+                  <i class="fas fa-save me-1"></i>Salveaza parametri
+                </button>
+                <span class="text-muted small">Salvarea pastreaza si selectorii CSS curenti.</span>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      {# ── Control job ── #}
+      <div class="col-lg-5">
+        <div class="card border shadow-sm h-100">
+          <div class="card-header bg-light fw-semibold py-2">
+            <i class="fas fa-cog me-2 text-success"></i>Control job
+          </div>
+          <div class="card-body d-flex flex-column">
+            {% if stats.total == 0 %}
+              <div class="alert alert-warning small py-2 mb-0">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                Analizeaza mai intai un sitemap in Tab 1.
+              </div>
+            {% elif not config or not config.sel_title %}
+              <div class="alert alert-warning small py-2 mb-0">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                Configureaza selectorul <strong>Titlu</strong> in Tab 3.
+              </div>
+            {% else %}
+              <div class="d-flex gap-2 flex-wrap mb-3">
+                <span class="badge bg-warning text-dark">{{ stats.pending }} pending</span>
+                <span class="badge bg-success">{{ stats.scraped }} scraped</span>
+                {% if stats.error %}<span class="badge bg-danger">{{ stats.error }} erori</span>{% endif %}
+                <span class="badge bg-secondary">{{ stats.total }} total</span>
+              </div>
+
+              {# Stare: idle #}
+              <div id="ctrl-idle">
+                <button type="button" class="btn btn-success btn-pill w-100 mb-2"
+                        id="btn-start" onclick="startJob()"
+                        {% if stats.pending == 0 %}disabled title="Nu exista URL-uri pending"{% endif %}>
+                  <i class="fas fa-play me-1"></i>
+                  Porneste scraping{% if stats.pending > 0 %} ({{ stats.pending }} URL-uri){% endif %}
+                </button>
+                {% if stats.scraped > 0 %}
+                <a href="{{ url_for('products.list_view') }}" class="btn btn-outline-primary btn-sm btn-pill w-100">
+                  <i class="fas fa-list me-1"></i>Vezi produsele scraped ({{ stats.scraped }})
+                </a>
+                {% endif %}
+              </div>
+
+              {# Stare: running #}
+              <div id="ctrl-running" class="d-none">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                  <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                  <strong class="small">In executie...</strong>
+                  <span id="ctrl-counter" class="text-muted small ms-auto"></span>
+                </div>
+                <div class="progress mb-3" style="height:8px;">
+                  <div id="progress-bar-ctrl"
+                       class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+                       style="width:0%"></div>
+                </div>
+                <button type="button" class="btn btn-danger btn-pill w-100" onclick="stopJob()">
+                  <i class="fas fa-stop me-1"></i>Opreste job
+                </button>
+                <p class="text-muted small mt-2 mb-0">
+                  <i class="fas fa-info-circle me-1"></i>
+                  Oprirea este graduala — URL-ul curent se finalizeaza inainte de stop.
+                </p>
+              </div>
+
+              {# Stare: done #}
+              <div id="ctrl-done" class="d-none">
+                <div class="alert alert-success py-2 small mb-3" id="ctrl-done-msg"></div>
+                <div class="d-flex gap-2 flex-wrap">
+                  <a href="{{ url_for('products.list_view') }}" class="btn btn-sm btn-primary btn-pill">
+                    <i class="fas fa-list me-1"></i>Produse
+                  </a>
+                  <button type="button" class="btn btn-sm btn-soft btn-pill" onclick="location.reload()">
+                    <i class="fas fa-sync me-1"></i>Reincarca
+                  </button>
+                </div>
+              </div>
+
+              {# Stare: oprit manual #}
+              <div id="ctrl-stopped" class="d-none">
+                <div class="alert alert-warning py-2 small mb-3" id="ctrl-stopped-msg">
+                  <i class="fas fa-stop-circle me-1"></i>Job oprit manual.
+                </div>
+                <button type="button" class="btn btn-sm btn-soft btn-pill" onclick="location.reload()">
+                  <i class="fas fa-sync me-1"></i>Reincarca pagina
+                </button>
+              </div>
+
+              {# Stare: eroare critica #}
+              <div id="ctrl-error" class="d-none">
+                <div class="alert alert-danger py-2 small mb-0" id="ctrl-error-msg"></div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>{# /row #}
+
+    {# ── Log live ── #}
+    <div id="run-log-section" class="mb-3 d-none">
+      <div class="d-flex align-items-center justify-content-between mb-1">
+        <span class="small fw-semibold text-muted"><i class="fas fa-terminal me-1"></i>Log live</span>
+        <button type="button" class="btn btn-sm btn-soft btn-pill py-0 px-2"
+                onclick="document.getElementById('progress-log').innerHTML=''" title="Sterge log">
+          <i class="fas fa-trash-alt" style="font-size:.7rem;"></i>
+        </button>
+      </div>
+      <div id="progress-log"
+           class="border rounded p-2 bg-dark text-light"
+           style="max-height:300px;overflow-y:auto;font-size:0.74rem;font-family:monospace;line-height:1.5;">
+      </div>
+    </div>
+
+    {# ── Istoric job-uri ── #}
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light fw-semibold py-2 d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-history me-2"></i>Istoric job-uri</span>
+        <div class="d-flex gap-1">
+          <button type="button" class="btn btn-sm btn-soft btn-pill py-0 px-2" onclick="loadJobHistory()" title="Reincarca">
+            <i class="fas fa-sync" style="font-size:.75rem;"></i>
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-danger btn-pill py-0 px-2"
+                  onclick="deleteAllHistory()" title="Sterge tot istoricul">
+            <i class="fas fa-trash-alt" style="font-size:.75rem;"></i> Sterge tot
+          </button>
+        </div>
+      </div>
+      <div id="job-history-body">
+        <div class="text-center text-muted py-4 small">
+          <span class="spinner-border spinner-border-sm me-1"></span>Se incarca...
+        </div>
+      </div>
+    </div>
+
+  </div>{# /tab-run #}
+
+</div>{# /tab-content #}
+
+{# ── Modal log job ── #}
+<div class="modal fade" id="modal-job-log" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title mb-0">
+          <i class="fas fa-terminal me-2"></i>Log job: <code id="modal-job-id"></code>
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="modal-job-log-content"
+             class="bg-dark text-light p-3"
+             style="font-size:.74rem;font-family:monospace;line-height:1.6;min-height:200px;">
+          <span class="text-muted">Se incarca...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+.blink-badge { animation: blink 1.2s infinite; }
+#progress-log .log-ok    { color: #6ee7b7; }
+#progress-log .log-error { color: #fca5a5; }
+#progress-log .log-start { color: #93c5fd; }
+#progress-log .log-done  { color: #fcd34d; }
+#modal-job-log-content .log-ok    { color: #6ee7b7; }
+#modal-job-log-content .log-error { color: #fca5a5; }
+#modal-job-log-content .log-start { color: #93c5fd; }
+#modal-job-log-content .log-done  { color: #fcd34d; }
+</style>
+
+<script>
+const CODE = "{{ competitor.internal_code }}";
+let urlsCurrentPage = 1;
+let urlsLoaded = false;
+let pollInterval = null;
+let progressOffset = 0;
+let jobHistoryLoaded = false;
+
+// ── TAB SWITCH ─────────────────────────────────────────────────────────────
+function switchTab(id) {
+  const btn = document.querySelector(`[data-bs-target="#${id}"]`);
+  if (btn) btn.click();
+}
+
+document.querySelectorAll('[data-bs-toggle="tab"]').forEach(btn => {
+  btn.addEventListener('shown.bs.tab', e => {
+    const target = e.target.getAttribute('data-bs-target');
+    if (target === '#tab-urls' && !urlsLoaded) {
+      urlsLoaded = true;
+      loadUrls(1);
+    }
+    if (target === '#tab-run' && !jobHistoryLoaded) {
+      jobHistoryLoaded = true;
+      loadJobHistory();
+    }
+  });
+});
+
+// ── ANALIZA SITEMAP ────────────────────────────────────────────────────────
+function analyzeSitemap(replace) {
+  const sitemapUrl = document.getElementById('sitemap-url').value.trim();
+  const urlFilter  = document.getElementById('url-filter').value.trim();
+  if (!sitemapUrl) { alert('Introdu URL-ul sitemap-ului.'); return; }
+
+  const btn = document.getElementById('btn-analyze');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Se analizeaza...';
+
+  const resultDiv = document.getElementById('analyze-result');
+  resultDiv.innerHTML = '<div class="text-muted small"><span class="spinner-border spinner-border-sm me-1"></span>Se parseaza sitemap-ul...</div>';
+
+  fetch(`/scraping/${CODE}/analyze-sitemap`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sitemap_url: sitemapUrl, url_filter: urlFilter, replace })
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-search me-1"></i>Analizeaza';
+    if (data.error) {
+      resultDiv.innerHTML = `<div class="alert alert-danger py-2 small mb-0"><i class="fas fa-exclamation-triangle me-1"></i>${data.error}</div>`;
+      return;
+    }
+    resultDiv.innerHTML = `
+      <div class="alert alert-success py-2 small mb-0">
+        <i class="fas fa-check-circle me-1"></i>
+        <strong>${data.total}</strong> URL-uri gasite,
+        <strong>${data.added}</strong> adaugate noi,
+        <strong>${data.existing}</strong> existente deja.
+        Se reincarca pagina...
+      </div>`;
+    setTimeout(() => location.reload(), 1200);
+  })
+  .catch(e => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-search me-1"></i>Analizeaza';
+    resultDiv.innerHTML = `<div class="alert alert-danger py-2 small mb-0">Eroare retea: ${e}</div>`;
+  });
+}
+
+// ── TABEL URL-URI ──────────────────────────────────────────────────────────
+function loadUrls(page) {
+  urlsCurrentPage = page;
+  const status = document.getElementById('filter-status')?.value || '';
+  const tbody = document.getElementById('urls-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="5" class="text-center py-2"><span class="spinner-border spinner-border-sm"></span></td></tr>';
+
+  fetch(`/scraping/${CODE}/urls?page=${page}&status=${status}`)
+  .then(r => r.json())
+  .then(data => {
+    if (!data.items.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Niciun URL.</td></tr>';
+      document.getElementById('urls-pagination').innerHTML = '';
+      return;
+    }
+    const badge = {
+      pending: '<span class="badge bg-warning text-dark">pending</span>',
+      scraped: '<span class="badge bg-success">scraped</span>',
+      error:   '<span class="badge bg-danger">error</span>',
+    };
+    tbody.innerHTML = data.items.map((u, i) => `
+      <tr>
+        <td class="text-muted small">${(page-1)*50+i+1}</td>
+        <td>
+          <div class="d-flex align-items-center gap-1">
+            <a href="${u.url}" target="_blank" class="small text-truncate" style="max-width:340px;" title="${u.url}">${u.url}</a>
+            <button type="button" class="btn btn-outline-secondary btn-sm btn-pill flex-shrink-0 copy-btn"
+                    style="padding:1px 6px;font-size:.7rem;"
+                    data-url="${u.url}" onclick="copyUrl(this)" title="Copiaza URL">
+              <i class="fas fa-copy"></i>
+            </button>
+          </div>
+          ${u.error_msg ? `<small class="text-danger">${u.error_msg}</small>` : ''}
+        </td>
+        <td>${badge[u.status] || u.status}</td>
+        <td class="small">
+          ${u.product_title
+            ? `<span class="text-success">${u.product_title.substring(0,45)}</span><br><code class="text-muted" style="font-size:.68rem;">${u.product_sku||''}</code>`
+            : '<span class="text-muted">—</span>'}
+        </td>
+        <td class="small text-muted">${u.scraped_at ? u.scraped_at.substring(0,16).replace('T',' ') : '—'}</td>
+      </tr>`).join('');
+
+    const pag = document.getElementById('urls-pagination');
+    const start = (page-1)*50+1, end = Math.min(page*50, data.total);
+    let h = `<span>${start}–${end} din ${data.total}</span><div class="d-flex gap-1 flex-wrap">`;
+    for (let p = 1; p <= data.pages; p++) {
+      if (data.pages > 8 && Math.abs(p-page) > 2 && p !== 1 && p !== data.pages) {
+        if (p === 2 || p === data.pages-1) h += '<span class="px-1">…</span>';
+        continue;
+      }
+      h += `<button class="btn btn-sm ${p===page?'btn-primary':'btn-outline-secondary'} btn-pill px-2 py-0" onclick="loadUrls(${p})">${p}</button>`;
+    }
+    pag.innerHTML = h + '</div>';
+  });
+}
+
+// ── COPY URL ──────────────────────────────────────────────────────────────
+function copyUrl(btn) {
+  const url = btn.dataset.url;
+  navigator.clipboard.writeText(url).then(() => {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i>';
+    btn.classList.replace('btn-outline-secondary', 'btn-success');
+    setTimeout(() => { btn.innerHTML = orig; btn.classList.replace('btn-success', 'btn-outline-secondary'); }, 1500);
+  });
+}
+
+// ── AUTO-DISCOVER ──────────────────────────────────────────────────────────
+const FIELD_MAP = { title:'sel_title', pret:'sel_pret', sku:'sel_sku', brand:'sel_brand', descriere:'sel_descriere', categorie:'sel_categorie' };
+const FIELD_LABEL = { title:'Titlu', pret:'Pret', sku:'SKU', brand:'Brand', descriere:'Descriere', categorie:'Categorie' };
+const SRC_BADGE = { structured:'<span class="badge bg-success ms-1" style="font-size:.58rem;">JSON-LD</span>', css:'<span class="badge bg-info text-dark ms-1" style="font-size:.58rem;">CSS</span>' };
+window._discovered = {};
+
+function discoverSelectors() {
+  let url = document.getElementById('discover-url').value.trim();
+  if (!url) {
+    const firstLink = document.querySelector('#urls-tbody a');
+    if (firstLink) { url = firstLink.href; document.getElementById('discover-url').value = url; }
+    else { alert('Introdu un URL de produs.'); return; }
+  }
+  const btn = document.getElementById('btn-discover');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Se analizeaza...';
+
+  fetch(`/scraping/${CODE}/discover`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-magic me-1"></i>Descopera automat';
+    const div = document.getElementById('discover-result');
+    div.classList.remove('d-none');
+    if (data.error) { div.innerHTML = `<div class="alert alert-danger py-2 small">${data.error}</div>`; return; }
+
+    window._discovered = {};
+    for (const [field, inputId] of Object.entries(FIELD_MAP)) {
+      const res = data[field];
+      if (res?.candidates?.length) window._discovered[inputId] = res.candidates[0].selector;
+      else if (res?.selector)      window._discovered[inputId] = res.selector;
+    }
+
+    let rows = '';
+    for (const [field, inputId] of Object.entries(FIELD_MAP)) {
+      const res = data[field];
+      const src = SRC_BADGE[res?.source] || '';
+      const val = res?.value
+        ? `<span class="text-success" style="font-size:.75rem;" title="${res.value}">${res.value.substring(0,55)}${res.value.length>55?'…':''}</span>`
+        : '<span class="text-muted" style="font-size:.75rem;">—</span>';
+      let btns = '<span class="text-muted" style="font-size:.72rem;">Negasit</span>';
+      if (res?.candidates?.length) {
+        btns = res.candidates.map(c => {
+          const sel = c.selector.replace(/\\/g,'\\\\').replace(/`/g,'\\`');
+          return `<button type="button" class="btn btn-sm btn-outline-primary btn-pill me-1 mb-1"
+            style="font-size:.68rem;font-family:monospace;padding:1px 7px;"
+            onclick="applySelector('${inputId}',\`${sel}\`,this)"
+            title="${c.preview.substring(0,100).replace(/"/g,'&quot;')}">${c.selector}</button>`;
+        }).join('');
+      }
+      rows += `<tr>
+        <td class="small fw-semibold">${FIELD_LABEL[field]}${src}</td>
+        <td>${val}</td>
+        <td>${btns}</td>
+      </tr>`;
+    }
+
+    div.innerHTML = `
+      <div class="border rounded bg-light mb-0">
+        <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+          <span class="small fw-semibold">Selectori descoperiti</span>
+          <button type="button" class="btn btn-success btn-sm btn-pill" onclick="applyAllSelectors(this)">
+            <i class="fas fa-magic me-1"></i>Populeaza automat toate campurile
+          </button>
+        </div>
+        <table class="table table-sm mb-0">
+          <thead class="table-light"><tr>
+            <th style="width:110px;">Camp</th>
+            <th style="width:180px;">Valoare gasita</th>
+            <th>Selectori candidati</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  })
+  .catch(e => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-magic me-1"></i>Descopera automat';
+    const div = document.getElementById('discover-result');
+    div.classList.remove('d-none');
+    div.innerHTML = `<div class="alert alert-danger py-2 small">Eroare: ${e}</div>`;
+  });
+}
+
+function applyAllSelectors(btn) {
+  let count = 0;
+  for (const [inputId, selector] of Object.entries(window._discovered)) {
+    const input = document.getElementById(inputId);
+    if (input && selector) {
+      input.value = selector;
+      input.classList.add('border-success');
+      setTimeout(() => input.classList.remove('border-success'), 2000);
+      count++;
+    }
+  }
+  const orig = btn.innerHTML;
+  btn.innerHTML = `<i class="fas fa-check me-1"></i>${count} campuri populate`;
+  btn.disabled = true;
+  setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 2000);
+}
+
+function applySelector(inputId, selector, btn) {
+  const input = document.getElementById(inputId);
+  if (input) { input.value = selector; input.classList.add('border-success'); setTimeout(() => input.classList.remove('border-success'), 1500); }
+  btn.closest('.d-flex')?.querySelectorAll('button').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-outline-primary'); });
+  btn.classList.remove('btn-outline-primary'); btn.classList.add('btn-primary');
+}
+
+// ── TEST SELECTOR ──────────────────────────────────────────────────────────
+function testSingleSelector(fieldName) {
+  const url = document.getElementById('discover-url').value.trim() || document.querySelector('#urls-tbody a')?.href || '';
+  if (!url) { alert('Introdu un URL in campul de auto-descoperire.'); return; }
+  const selectors = {};
+  document.querySelectorAll('.selector-input').forEach(el => { selectors[el.dataset.field.replace('sel_','')] = el.value.trim() || null; });
+  fetch(`/scraping/${CODE}/test`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, ...Object.fromEntries(Object.entries(selectors).map(([k,v]) => [`sel_${k}`,v])) })
+  })
+  .then(r => r.json())
+  .then(data => {
+    const field = fieldName.replace('sel_','');
+    const val = data[field];
+    alert(val ? `✓ ${field}: ${val}` : `✗ ${field}: negasit`);
+  });
+}
+
+// ── SYNC selectori Tab3 → form anti-block ─────────────────────────────────
+function syncSelectorsToAntiblock() {
+  const map = {
+    'sel_sku': 'ab-sel_sku', 'sel_title': 'ab-sel_title',
+    'sel_pret': 'ab-sel_pret', 'sel_brand': 'ab-sel_brand',
+    'sel_descriere': 'ab-sel_descriere', 'sel_categorie': 'ab-sel_categorie',
+  };
+  for (const [srcId, dstId] of Object.entries(map)) {
+    const src = document.getElementById(srcId);
+    const dst = document.getElementById(dstId);
+    if (src && dst) dst.value = src.value;
+  }
+  const urlFilter = document.getElementById('url-filter');
+  const abFilter  = document.getElementById('ab-url_filter');
+  if (urlFilter && abFilter) abFilter.value = urlFilter.value;
+}
+
+// ── SCRAPING JOB: start ────────────────────────────────────────────────────
+function startJob() {
+  fetch(`/scraping/${CODE}/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { alert(data.error); return; }
+    setJobState('running');
+    progressOffset = 0;
+    pollInterval = setInterval(pollStatus, 1500);
+  })
+  .catch(e => alert('Eroare pornire job: ' + e));
+}
+
+// ── SCRAPING JOB: stop ────────────────────────────────────────────────────
+function stopJob() {
+  fetch(`/scraping/${CODE}/stop`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { alert(data.error); return; }
+    appendLog({ status: 'start', message: 'Cerere de oprire trimisa. Se asteapta finalizarea URL-ului curent...', ts: now() });
+  })
+  .catch(e => alert('Eroare oprire: ' + e));
+}
+
+// ── POLL STATUS ────────────────────────────────────────────────────────────
+function pollStatus() {
+  fetch(`/scraping/${CODE}/status?offset=${progressOffset}`)
+  .then(r => r.json())
+  .then(data => {
+    progressOffset = data.offset || progressOffset;
+
+    data.progress.forEach(p => appendLog(p));
+
+    // Actualizeaza progress bar si counter
+    if (data.progress.length) {
+      const last = data.progress[data.progress.length - 1];
+      if (last.current && last.total) {
+        const pct = Math.round(last.current / last.total * 100);
+        const pctStr = `${last.current}/${last.total} (${pct}%)`;
+        const bar = document.getElementById('progress-bar-ctrl');
+        if (bar) bar.style.width = pct + '%';
+        const barE = document.getElementById('progress-bar-emergency');
+        if (barE) barE.style.width = pct + '%';
+        const ctr = document.getElementById('ctrl-counter');
+        if (ctr) ctr.textContent = pctStr;
+        const ectr = document.getElementById('emergency-counter');
+        if (ectr) ectr.textContent = pctStr;
+      }
+    }
+
+    if (data.status === 'done') {
+      clearInterval(pollInterval); pollInterval = null;
+      const s = data.stats || {};
+      const msg = `<i class="fas fa-check-circle me-1"></i>Finalizat: <strong>${s.inserted||0}</strong> inserate, <strong>${s.updated||0}</strong> actualizate, <strong>${s.errors||0}</strong> erori din <strong>${s.total||0}</strong>.`;
+      document.getElementById('ctrl-done-msg').innerHTML = msg;
+      setJobState('done');
+      loadJobHistory();
+    } else if (data.status === 'stopped') {
+      clearInterval(pollInterval); pollInterval = null;
+      const s = data.stats || {};
+      const msg = `<i class="fas fa-stop-circle me-1"></i>Oprit manual. ${s.inserted||0} inserate, ${s.updated||0} actualizate, ${s.errors||0} erori.`;
+      document.getElementById('ctrl-stopped-msg').innerHTML = msg;
+      setJobState('stopped');
+      loadJobHistory();
+    } else if (data.status === 'error') {
+      clearInterval(pollInterval); pollInterval = null;
+      document.getElementById('ctrl-error-msg').textContent = 'Eroare critica: ' + (data.error || 'necunoscuta');
+      setJobState('error');
+      loadJobHistory();
+    }
+  })
+  .catch(e => console.warn('Poll error:', e));
+}
+
+// ── APPEND LOG LINE ────────────────────────────────────────────────────────
+function appendLog(p) {
+  const log = document.getElementById('progress-log');
+  const logSection = document.getElementById('run-log-section');
+  if (!log) return;
+  if (logSection) logSection.classList.remove('d-none');
+
+  const line = document.createElement('div');
+  const cls = p.status === 'error' ? 'log-error' : p.status === 'ok' ? 'log-ok' : p.status === 'done' ? 'log-done' : 'log-start';
+  line.className = cls;
+  const icon = p.status === 'error' ? '✗' : p.status === 'ok' ? '✓' : p.status === 'done' ? '★' : '→';
+  const ts = p.ts || now();
+  const dur = p.duration_ms ? ` [${p.duration_ms}ms]` : '';
+  line.textContent = `[${ts}] ${icon} ${p.message || p.url || ''}${dur}`;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function now() {
+  return new Date().toTimeString().substring(0, 8);
+}
+
+// ── SET JOB STATE ──────────────────────────────────────────────────────────
+function setJobState(state) {
+  const states = ['idle', 'running', 'done', 'stopped', 'error'];
+  states.forEach(s => {
+    const el = document.getElementById(`ctrl-${s}`);
+    if (el) el.classList.toggle('d-none', s !== state);
+  });
+  // Bara de urgenta: vizibila pe orice tab cat timp job-ul ruleaza
+  const bar = document.getElementById('emergency-stop-bar');
+  if (bar) bar.classList.toggle('d-none', state !== 'running');
+}
+
+// ── ISTORIC JOB-URI ────────────────────────────────────────────────────────
+function loadJobHistory() {
+  const body = document.getElementById('job-history-body');
+  if (!body) return;
+  body.innerHTML = '<div class="text-center text-muted py-3 small"><span class="spinner-border spinner-border-sm me-1"></span>Se incarca...</div>';
+
+  fetch(`/scraping/${CODE}/logs/jobs`)
+  .then(r => r.json())
+  .then(jobs => {
+    if (!jobs.length) {
+      body.innerHTML = '<div class="text-center text-muted py-4 small">Niciun job gasit.</div>';
+      return;
+    }
+    let rows = jobs.map(j => `
+      <tr id="job-row-${j.job_id}">
+        <td class="font-monospace small text-muted">${j.job_id || '—'}</td>
+        <td class="small">${j.started || '—'}</td>
+        <td class="text-center"><span class="badge bg-secondary">${j.entries}</span></td>
+        <td class="text-center"><span class="badge bg-success">${j.ok}</span></td>
+        <td class="text-center"><span class="badge ${j.errors > 0 ? 'bg-danger' : 'bg-light text-muted border'}">${j.errors}</span></td>
+        <td>
+          <div class="d-flex gap-1">
+            <button type="button" class="btn btn-sm btn-soft btn-pill py-0 px-2"
+                    onclick="showJobLog('${j.job_id}')" title="Vezi log">
+              <i class="fas fa-terminal" style="font-size:.7rem;"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-pill py-0 px-2"
+                    onclick="deleteJobHistory('${j.job_id}')" title="Sterge acest job">
+              <i class="fas fa-trash-alt" style="font-size:.7rem;"></i>
+            </button>
+          </div>
+        </td>
+      </tr>`).join('');
+
+    body.innerHTML = `
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Job ID</th>
+            <th style="width:130px;">Pornit la</th>
+            <th class="text-center" style="width:70px;">Total</th>
+            <th class="text-center" style="width:60px;">OK</th>
+            <th class="text-center" style="width:60px;">Erori</th>
+            <th style="width:80px;"></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  })
+  .catch(e => {
+    body.innerHTML = `<div class="alert alert-danger py-2 small m-2">Eroare: ${e}</div>`;
+  });
+}
+
+function deleteJobHistory(jobId) {
+  if (!confirm(`Stergi log-ul jobului ${jobId}?`)) return;
+  fetch(`/scraping/${CODE}/logs/delete`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ job_id: jobId })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      const row = document.getElementById(`job-row-${jobId}`);
+      if (row) row.remove();
+      // Daca tbody ramane gol
+      const tbody = document.querySelector('#job-history-body tbody');
+      if (tbody && !tbody.querySelector('tr')) {
+        document.getElementById('job-history-body').innerHTML =
+          '<div class="text-center text-muted py-4 small">Niciun job gasit.</div>';
+      }
+    } else {
+      alert('Eroare la stergere.');
+    }
+  })
+  .catch(e => alert('Eroare: ' + e));
+}
+
+function deleteAllHistory() {
+  if (!confirm('Stergi TOT istoricul de log-uri pentru acest competitor?')) return;
+  fetch(`/scraping/${CODE}/logs/delete`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      document.getElementById('job-history-body').innerHTML =
+        '<div class="text-center text-muted py-4 small">Niciun job gasit.</div>';
+    } else {
+      alert('Eroare la stergere.');
+    }
+  })
+  .catch(e => alert('Eroare: ' + e));
+}
+
+// ── MODAL LOG JOB ──────────────────────────────────────────────────────────
+function showJobLog(jobId) {
+  document.getElementById('modal-job-id').textContent = jobId;
+  const content = document.getElementById('modal-job-log-content');
+  content.innerHTML = '<span class="text-muted">Se incarca...</span>';
+
+  const modal = new bootstrap.Modal(document.getElementById('modal-job-log'));
+  modal.show();
+
+  fetch(`/scraping/${CODE}/logs?job_id=${jobId}&limit=500`)
+  .then(r => r.json())
+  .then(data => {
+    if (!data.items.length) {
+      content.innerHTML = '<span class="text-muted">Nicio intrare in log.</span>';
+      return;
+    }
+    content.innerHTML = data.items.map(l => {
+      const cls = l.status === 'error' ? 'log-error' : l.status === 'ok' ? 'log-ok' : l.status === 'done' ? 'log-done' : 'log-start';
+      const icon = l.status === 'error' ? '✗' : l.status === 'ok' ? '✓' : l.status === 'done' ? '★' : '→';
+      const dur = l.duration_ms ? ` [${l.duration_ms}ms]` : '';
+      const msg = (l.message || l.url || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return `<div class="${cls}">[${l.ts}] ${icon} ${msg}${dur}</div>`;
+    }).join('');
+  })
+  .catch(e => {
+    content.innerHTML = `<span class="text-danger">Eroare: ${e}</span>`;
+  });
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('selectors-form')?.addEventListener('submit', () => {
+    document.getElementById('hidden-url-filter').value = document.getElementById('url-filter').value;
+  });
+
+  {% if job and job.status == 'running' %}
+  switchTab('tab-run');
+  setJobState('running');
+  progressOffset = 0;
+  document.getElementById('run-log-section')?.classList.remove('d-none');
+  pollInterval = setInterval(pollStatus, 1500);
+  {% endif %}
+});
+</script>
+{% endblock %}
