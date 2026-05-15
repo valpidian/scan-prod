@@ -1,8 +1,10 @@
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
+from sqlalchemy import func
 
 from app.extensions import csrf, db
 from app.models.competitor import Competitor
 from app.models.competitor_product import CompetitorProduct
+from app.models.product_association import ProductAssociation
 from app.services.association_service import sync_pret_preluat
 from app.services.product_search_service import build_query
 
@@ -26,6 +28,31 @@ def list_view():
     pagination = build_query(filters).paginate(page=page, per_page=per_page, error_out=False)
     competitors = Competitor.query.order_by(Competitor.internal_code.asc()).all()
     competitor_lookup = {c.internal_code: c.display_name for c in competitors}
+
+    # Numara asocierile pentru produsele de pe pagina curenta (fara N+1)
+    page_ids = [p.id for p in pagination.items]
+    asociere_counts: dict = {}
+    if page_ids:
+        from sqlalchemy import or_ as _or
+        rows = (
+            db.session.query(
+                ProductAssociation.product_id,
+                ProductAssociation.associated_id,
+            )
+            .filter(
+                _or(
+                    ProductAssociation.product_id.in_(page_ids),
+                    ProductAssociation.associated_id.in_(page_ids),
+                )
+            )
+            .all()
+        )
+        for r in rows:
+            if r.product_id in page_ids:
+                asociere_counts[r.product_id] = asociere_counts.get(r.product_id, 0) + 1
+            if r.associated_id in page_ids:
+                asociere_counts[r.associated_id] = asociere_counts.get(r.associated_id, 0) + 1
+
     return render_template(
         "products/list.html",
         products=pagination.items,
@@ -35,6 +62,7 @@ def list_view():
         competitors=competitors,
         competitor_lookup=competitor_lookup,
         filters=filters,
+        asociere_counts=asociere_counts,
     )
 
 
@@ -81,8 +109,9 @@ def delete(product_id):
 
 @bp.route("/<int:product_id>/asociate", methods=["GET"])
 def asociate(product_id):
+    from app.models.product_association import ProductAssociation
     product = CompetitorProduct.query.get_or_404(product_id)
-    ids = [int(x) for x in (product.asociere or "").split(";") if x.isdigit()]
+    ids = ProductAssociation.get_associated_ids(product_id)
     if not ids:
         return jsonify({"items": [], "meta": {}})
     items = CompetitorProduct.query.filter(CompetitorProduct.id.in_(ids)).all()
@@ -160,13 +189,13 @@ def scrape_product(product_id):
 @bp.route("/<int:product_id>/pret-preluat", methods=["POST"])
 @csrf.exempt
 def set_pret_preluat(product_id):
+    from app.models.product_association import ProductAssociation
     product = CompetitorProduct.query.get_or_404(product_id)
     data = request.get_json()
-    asociat_id = str(data.get("asociat_id", ""))
-    asocieri = [x for x in (product.asociere or "").split(";") if x]
-    if asociat_id not in asocieri:
+    asociat_id = int(data.get("asociat_id", 0))
+    if not asociat_id or not ProductAssociation.are_associated(product_id, asociat_id):
         return jsonify({"error": "Produsul nu este asociat"}), 400
-    asociat = CompetitorProduct.query.get_or_404(int(asociat_id))
+    asociat = CompetitorProduct.query.get_or_404(asociat_id)
     product.pret_preluat = asociat.pret
     product.pret_preluat_sursa = asociat.cod_competitor
     product.pret_preluat_asociat_id = asociat.id
@@ -257,21 +286,19 @@ def ai_batch_run():
 @csrf.exempt
 def ai_batch_confirm():
     """Salveaza asocierile confirmate din procesarea in masa."""
+    from app.models.product_association import ProductAssociation
     data = request.get_json()
-    results = data.get("results", [])  # [{product_id, matched_ids}, ...]
+    results = data.get("results", [])
     saved = 0
     for item in results:
-        product = CompetitorProduct.query.get(item.get("product_id"))
-        if not product:
+        product_id = item.get("product_id")
+        if not product_id:
             continue
-        ids_to_save = [str(x) for x in item.get("matched_ids", []) if x]
+        ids_to_save = [int(x) for x in item.get("matched_ids", []) if str(x).isdigit()]
         if not ids_to_save:
             continue
-        current = [x for x in (product.asociere or "").split(";") if x]
         for mid in ids_to_save:
-            if mid not in current:
-                current.append(mid)
-        product.asociere = ";".join(current)
+            ProductAssociation.add(product_id, mid)
         saved += 1
     db.session.commit()
     return jsonify({"ok": True, "saved": saved})
@@ -281,25 +308,20 @@ def ai_batch_confirm():
 @csrf.exempt
 def exclude_asociere(product_id):
     from app.models.excluded_association import ExcludedAssociation
+    from app.models.product_association import ProductAssociation
     product = CompetitorProduct.query.get_or_404(product_id)
     data = request.get_json()
     excluded_id = int(data.get("excluded_id", 0))
     if not excluded_id:
         return jsonify({"error": "excluded_id lipsa"}), 400
 
-    current = [x for x in (product.asociere or "").split(";") if x]
-    if str(excluded_id) in current:
-        current.remove(str(excluded_id))
-        product.asociere = ";".join(current)
+    ProductAssociation.remove(product_id, excluded_id)
 
     # Golim pretul preluat si recalculam din asocierile ramase.
-    # Facem asta indiferent de sursa originala, ca sa evitam situatia
-    # in care pret_preluat_asociat_id e None (date vechi) si verificarea
-    # conditionala ar rata cazul cand produsul exclus era sursa pretului.
     product.pret_preluat = None
     product.pret_preluat_sursa = None
     product.pret_preluat_asociat_id = None
-    sync_pret_preluat(product)  # re-populeaza din ce a ramas, sau lasa None
+    sync_pret_preluat(product)
 
     existing = ExcludedAssociation.query.filter_by(
         product_id=product_id, excluded_product_id=excluded_id

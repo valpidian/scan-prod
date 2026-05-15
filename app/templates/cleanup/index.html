@@ -53,6 +53,76 @@
   </div>
 </div>
 
+{# ── Curatare prefix SKU ─────────────────────────────────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header fw-semibold py-2">
+    <i class="fas fa-tag me-2 text-primary"></i>Curatare prefix SKU
+    <span class="text-muted fw-normal small ms-2">Sterge prefixe gen "COD:", "SKU:", "Cod produs:" din campul SKU</span>
+  </div>
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-5">
+        <label class="form-label small fw-semibold mb-1">Prefix de sters</label>
+        <div class="input-group">
+          <input type="text" id="sku-prefix-input" class="form-control"
+                 placeholder="ex: COD PRODUS sau SKU">
+          <button class="btn btn-outline-secondary" type="button"
+                  onclick="document.getElementById('sku-prefix-input').value=''"
+                  title="Sterge">×</button>
+        </div>
+        <div class="mt-2 d-flex flex-wrap gap-1">
+          <span class="text-muted small me-1">Preseturi:</span>
+          {% for preset in ['COD', 'COD PRODUS', 'Cod produs', 'SKU', 'Cod articol', 'Nr. art', 'Ref', 'Art', 'Cod.', 'Articol'] %}
+          <button type="button" class="btn btn-sm btn-outline-secondary btn-pill px-2 py-0"
+                  style="font-size:.72rem;"
+                  onclick="document.getElementById('sku-prefix-input').value='{{ preset }}'">
+            {{ preset }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold mb-1">Filtru competitor <span class="text-muted fw-normal">(optional)</span></label>
+        <select id="sku-competitor-filter" class="form-select">
+          <option value="">Toti competitorii</option>
+          {% for c in competitors %}
+          <option value="{{ c.internal_code }}">{{ c.internal_code }} — {{ c.display_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-soft btn-pill" id="btn-sku-preview" onclick="skuStripPreview()">
+            <i class="fas fa-eye me-1"></i>Preview
+          </button>
+          <button type="button" class="btn btn-warning btn-pill d-none" id="btn-sku-apply" onclick="skuStripApply()">
+            <i class="fas fa-check me-1"></i>Aplica
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="sku-preview-result" class="mt-3 d-none">
+      <div id="sku-preview-count" class="mb-2 small fw-semibold"></div>
+      <div class="table-responsive" id="sku-preview-table-wrap">
+        <table class="table table-sm table-bordered mb-0" style="font-size:.8rem;">
+          <thead class="table-light">
+            <tr>
+              <th>Competitor</th>
+              <th>SKU inainte</th>
+              <th></th>
+              <th>SKU dupa</th>
+              <th>Titlu</th>
+            </tr>
+          </thead>
+          <tbody id="sku-preview-tbody"></tbody>
+        </table>
+      </div>
+      <div id="sku-preview-more" class="text-muted small mt-1 d-none"></div>
+    </div>
+  </div>
+</div>
+
 {% if not dirty %}
   <div class="card">
     <div class="card-body text-center py-5">
@@ -245,6 +315,97 @@ document.getElementById('btn-clean-all')?.addEventListener('click', async functi
 
 function escapeHtml(t) {
   return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── CURATARE PREFIX SKU ────────────────────────────────────────────────────
+let skuStripCount = 0;
+
+async function skuStripPreview() {
+  const prefix = document.getElementById('sku-prefix-input').value.trim();
+  const competitor = document.getElementById('sku-competitor-filter').value;
+  if (!prefix) { alert('Introdu un prefix de sters.'); return; }
+
+  const btn = document.getElementById('btn-sku-preview');
+  const origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Se analizeaza...';
+
+  const resp = await fetch('/cleanup/sku-strip/preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prefix, competitor }),
+  });
+  const data = await resp.json();
+  btn.disabled = false;
+  btn.innerHTML = origHtml;
+
+  const resultDiv = document.getElementById('sku-preview-result');
+  const countEl   = document.getElementById('sku-preview-count');
+  const tbody     = document.getElementById('sku-preview-tbody');
+  const moreEl    = document.getElementById('sku-preview-more');
+  const applyBtn  = document.getElementById('btn-sku-apply');
+
+  if (data.error) { alert(data.error); return; }
+
+  skuStripCount = data.count;
+  resultDiv.classList.remove('d-none');
+
+  if (!data.count) {
+    countEl.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>Niciun SKU nu contine prefixul <strong>"' + escapeHtml(prefix) + '"</strong>.</span>';
+    tbody.innerHTML = '';
+    moreEl.classList.add('d-none');
+    applyBtn.classList.add('d-none');
+    return;
+  }
+
+  countEl.innerHTML = `<i class="fas fa-exclamation-triangle text-warning me-1"></i><strong>${data.count}</strong> SKU-uri contin prefixul <strong>"${escapeHtml(prefix)}"</strong> si vor fi modificate.`;
+  tbody.innerHTML = data.samples.map(s => `
+    <tr>
+      <td><span class="badge bg-secondary">${escapeHtml(s.cod_competitor)}</span></td>
+      <td><code class="text-danger">${escapeHtml(s.sku_before)}</code></td>
+      <td class="text-center text-muted">→</td>
+      <td><code class="text-success">${escapeHtml(s.sku_after)}</code></td>
+      <td class="text-muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(s.title)}">${escapeHtml(s.title)}</td>
+    </tr>`).join('');
+
+  if (data.count > 20) {
+    moreEl.textContent = `... si inca ${data.count - 20} SKU-uri (afisat primele 20)`;
+    moreEl.classList.remove('d-none');
+  } else {
+    moreEl.classList.add('d-none');
+  }
+  applyBtn.classList.remove('d-none');
+}
+
+async function skuStripApply() {
+  const prefix = document.getElementById('sku-prefix-input').value.trim();
+  const competitor = document.getElementById('sku-competitor-filter').value;
+  if (!prefix) return;
+  if (!confirm(`Stergi prefixul "${prefix}" din ${skuStripCount} SKU-uri? Actiunea nu poate fi anulata.`)) return;
+
+  const btn = document.getElementById('btn-sku-apply');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Se aplica...';
+
+  const resp = await fetch('/cleanup/sku-strip/apply', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prefix, competitor }),
+  });
+  const data = await resp.json();
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-check me-1"></i>Aplica';
+
+  if (data.ok) {
+    const countEl = document.getElementById('sku-preview-count');
+    countEl.innerHTML = `<i class="fas fa-check-circle text-success me-1"></i><strong>${data.updated}</strong> SKU-uri actualizate cu succes.`;
+    document.getElementById('sku-preview-tbody').innerHTML = '';
+    document.getElementById('sku-preview-more').classList.add('d-none');
+    btn.classList.add('d-none');
+    skuStripCount = 0;
+  } else {
+    alert('Eroare la aplicare.');
+  }
 }
 </script>
 

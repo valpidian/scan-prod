@@ -20,6 +20,14 @@ class Config:
         f"sqlite:///{BASE_DIR / 'instance' / 'scan_pret.db'}",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # SQLite: timeout la lock contention (scraping thread + web thread)
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "connect_args": {"timeout": 30},
+        "pool_pre_ping": True,
+    }
+    # Cheie pentru criptare API keys (generata automat daca lipseste din .env)
+    _fernet_key = os.getenv("FERNET_KEY", "")
+    FERNET_KEY = _fernet_key.encode() if _fernet_key else None
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = 3600
     MAX_CONTENT_LENGTH = 25 * 1024 * 1024

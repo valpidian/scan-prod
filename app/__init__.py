@@ -33,8 +33,24 @@ def create_app(config_object=Config):
         from app import models  # noqa: F401
 
         db.create_all()
+        _cleanup_stale_jobs()
 
     return app
+
+
+def _cleanup_stale_jobs():
+    """La pornirea serverului, marcheaza joburile 'running' ramase din sesiunea anterioara."""
+    try:
+        from app.models.scraping_job import ScrapingJob
+        from datetime import datetime
+        stale = ScrapingJob.query.filter_by(status="running").all()
+        if stale:
+            for j in stale:
+                j.status = "error"
+                j.finished_at = datetime.utcnow()
+            db.session.commit()
+    except Exception:
+        pass
 
 
 def register_template_filters(app):

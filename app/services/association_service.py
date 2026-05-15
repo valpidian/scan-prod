@@ -7,11 +7,12 @@ from app.services.matching_service import rank_candidates
 
 def sync_pret_preluat(product):
     """Preia pretul minim din produsele asociate si il scrie in pret_preluat."""
-    ids = [x for x in (product.asociere or "").split(";") if x]
+    from app.models.product_association import ProductAssociation
+    ids = ProductAssociation.get_associated_ids(product.id)
     if not ids:
         return
     associated = CompetitorProduct.query.filter(
-        CompetitorProduct.id.in_([int(i) for i in ids if i.isdigit()]),
+        CompetitorProduct.id.in_(ids),
         CompetitorProduct.pret.isnot(None),
     ).all()
     if associated:
@@ -19,6 +20,57 @@ def sync_pret_preluat(product):
         product.pret_preluat = min_product.pret
         product.pret_preluat_sursa = min_product.cod_competitor
         product.pret_preluat_asociat_id = min_product.id
+
+
+def _fts_candidates(source_product, fetch_limit, target_competitors):
+    """Cauta candidati folosind FTS5. Returneaza lista de CompetitorProduct sau None daca FTS5 nu e disponibil."""
+    from app.extensions import db
+    from sqlalchemy import text
+
+    terms = []
+    if source_product.title:
+        from app.models.search_config import SearchConfig
+        cfg = SearchConfig.get()
+        words = [w for w in source_product.title.split() if len(w) > cfg.title_word_min_length]
+        terms.extend(words[:cfg.title_word_count])
+    if source_product.brand:
+        terms.append(source_product.brand)
+    if source_product.sku:
+        terms.append(source_product.sku)
+
+    if not terms:
+        return None
+
+    # Construieste query FTS5: fiecare termen cu prefix match (termen*)
+    fts_query = " OR ".join(f'"{t}"*' for t in terms)
+
+    competitor_filter = ""
+    params = {"fts_q": fts_query, "src_code": source_product.cod_competitor, "lim": fetch_limit}
+
+    if target_competitors:
+        placeholders = ", ".join(f":tc{i}" for i in range(len(target_competitors)))
+        for i, code in enumerate(target_competitors):
+            params[f"tc{i}"] = code
+        competitor_filter = f"AND cp.cod_competitor IN ({placeholders})"
+
+    sql = text(f"""
+        SELECT cp.id
+        FROM competitor_products_fts fts
+        JOIN competitor_products cp ON cp.id = fts.rowid
+        WHERE fts.competitor_products_fts MATCH :fts_q
+          AND cp.cod_competitor != :src_code
+          {competitor_filter}
+        LIMIT :lim
+    """)
+
+    try:
+        rows = db.session.execute(sql, params).fetchall()
+        ids = [r[0] for r in rows]
+        if not ids:
+            return []
+        return CompetitorProduct.query.filter(CompetitorProduct.id.in_(ids)).all()
+    except Exception:
+        return None  # FTS5 indisponibil — fallback la ILIKE
 
 
 def find_candidates(source_product, limit=None, target_competitors=None):
@@ -40,23 +92,25 @@ def find_candidates(source_product, limit=None, target_competitors=None):
     if not terms:
         return []
 
-    query = CompetitorProduct.query.filter(
-        CompetitorProduct.cod_competitor != source_product.cod_competitor
-    )
+    # Incearca FTS5 mai intai, fallback la ILIKE
+    db_candidates = _fts_candidates(source_product, fetch_limit, target_competitors)
 
-    # Filtru optional pe competitori tinta
-    if target_competitors:
-        query = query.filter(CompetitorProduct.cod_competitor.in_(target_competitors))
-
-    db_candidates = (
-        query.filter(or_(
-            *[CompetitorProduct.title.ilike(f"%{t}%") for t in terms],
-            *[CompetitorProduct.sku.ilike(f"%{t}%") for t in terms],
-            *([CompetitorProduct.brand.ilike(f"%{source_product.brand}%")] if source_product.brand else []),
-        ))
-        .limit(fetch_limit)
-        .all()
-    )
+    if db_candidates is None:
+        # FTS5 indisponibil — ILIKE fallback
+        query = CompetitorProduct.query.filter(
+            CompetitorProduct.cod_competitor != source_product.cod_competitor
+        )
+        if target_competitors:
+            query = query.filter(CompetitorProduct.cod_competitor.in_(target_competitors))
+        db_candidates = (
+            query.filter(or_(
+                *[CompetitorProduct.title.ilike(f"%{t}%") for t in terms],
+                *[CompetitorProduct.sku.ilike(f"%{t}%") for t in terms],
+                *([CompetitorProduct.brand.ilike(f"%{source_product.brand}%")] if source_product.brand else []),
+            ))
+            .limit(fetch_limit)
+            .all()
+        )
 
     codes = list({c.cod_competitor for c in db_candidates})
     comp_map = {

@@ -9,7 +9,7 @@
     <form method="get" id="filter-form" class="row g-2 align-items-end">
       <div class="col-md-2">
         <label class="form-label mb-1 small fw-bold">Competitor</label>
-        <select class="form-select form-select-sm" name="competitor">
+        <select class="form-select form-select-sm" name="competitor" onchange="this.form.submit()">
           <option value="">Toti</option>
           {% for c in competitors %}
             <option value="{{ c.internal_code }}" {% if filters.competitor == c.internal_code %}selected{% endif %}>
@@ -20,11 +20,11 @@
       </div>
       <div class="col-md-3">
         <label class="form-label mb-1 small fw-bold">Cautare</label>
-        <input class="form-control form-control-sm" name="q" value="{{ filters.q }}" placeholder="SKU, titlu, brand...">
+        <input class="form-control form-control-sm" id="input-q" name="q" value="{{ filters.q }}" placeholder="SKU, titlu, brand..." autocomplete="off">
       </div>
       <div class="col-md-2">
         <label class="form-label mb-1 small fw-bold">Sortare</label>
-        <select class="form-select form-select-sm" name="sort">
+        <select class="form-select form-select-sm" name="sort" onchange="this.form.submit()">
           <option value="title" {% if filters.sort=='title' %}selected{% endif %}>Titlu</option>
           <option value="sku" {% if filters.sort=='sku' %}selected{% endif %}>SKU</option>
           <option value="pret" {% if filters.sort=='pret' %}selected{% endif %}>Pret</option>
@@ -34,7 +34,7 @@
       </div>
       <div class="col-md-1">
         <label class="form-label mb-1 small fw-bold">Directie</label>
-        <select class="form-select form-select-sm" name="direction">
+        <select class="form-select form-select-sm" name="direction" onchange="this.form.submit()">
           <option value="asc" {% if filters.direction=='asc' %}selected{% endif %}>Asc</option>
           <option value="desc" {% if filters.direction=='desc' %}selected{% endif %}>Desc</option>
         </select>
@@ -107,7 +107,6 @@
             ('pret', 'Pret'),
             ('pret_preluat', 'Pret preluat'),
             ('brand', 'Brand'),
-            ('asociere', 'Asociere'),
           ] %}
           {% for col, label in sortable %}
             {% set is_active = filters.sort == col %}
@@ -124,13 +123,14 @@
               </a>
             </th>
           {% endfor %}
+          <th><span class="sort-header" style="cursor:default;">Asociere</span></th>
           <th>Sursa</th>
           <th style="width:110px;">Actiuni</th>
         </tr>
       </thead>
       <tbody>
         {% for product in products %}
-        <tr id="row-{{ product.id }}" data-id="{{ product.id }}" data-has-asociere="{{ '1' if product.asociere else '0' }}">
+        <tr id="row-{{ product.id }}" data-id="{{ product.id }}" data-has-asociere="{{ '1' if asociere_counts.get(product.id, 0) > 0 else '0' }}">
           <td>
             <input type="checkbox" class="form-check-input row-check" value="{{ product.id }}">
           </td>
@@ -154,9 +154,10 @@
           <td><span id="display-brand-{{ product.id }}">{{ product.brand or '—' }}</span></td>
           <td>
             <span id="display-asociere-{{ product.id }}">
-              {% if product.asociere %}
+              {% set _cnt = asociere_counts.get(product.id, 0) %}
+              {% if _cnt > 0 %}
                 <span class="badge bg-success me-1 asociere-toggle" data-id="{{ product.id }}" style="cursor:pointer;" title="Click pentru detalii">
-                  {{ product.asociere.split(';')|select|list|length }} asociat(e)
+                  {{ _cnt }} asociat(e)
                   <i class="fas fa-chevron-down ms-1" style="font-size:0.65rem;"></i>
                 </span>
               {% else %}
@@ -251,10 +252,6 @@
                   <input type="text" class="form-control form-control-sm" id="edit-descriere-{{ product.id }}" value="{{ product.descriere or '' }}">
                 </div>
                 <div class="col-md-3">
-                  <label class="edit-label">Asociere</label>
-                  <input type="text" class="form-control form-control-sm" id="edit-asociere-{{ product.id }}" value="{{ product.asociere or '' }}">
-                </div>
-                <div class="col-md-3">
                   <label class="edit-label">Alerta pret <span class="text-muted fw-normal">(notifica ≤ valoare)</span></label>
                   <input type="number" step="0.01" class="form-control form-control-sm" id="edit-pret-alerta-{{ product.id }}" value="{{ product.pret_alerta or '' }}" placeholder="ex: 150.00">
                 </div>
@@ -327,6 +324,19 @@ tr.selected-row { background:rgba(47,128,237,0.07) !important; }
 </style>
 
 <script>
+// ── Debounce cautare ──────────────────────────────
+(function() {
+  const input = document.getElementById('input-q');
+  if (!input) return;
+  let _t = null;
+  input.addEventListener('input', function() {
+    clearTimeout(_t);
+    _t = setTimeout(function() {
+      input.closest('form').submit();
+    }, 300);
+  });
+})();
+
 // ── Selectie ──────────────────────────────────────────────
 const selectedIds = new Set();
 
@@ -578,7 +588,6 @@ async function saveEdit(id) {
     brand:       document.getElementById(`edit-brand-${id}`).value,
     pret:        document.getElementById(`edit-pret-${id}`).value,
     descriere:   document.getElementById(`edit-descriere-${id}`).value,
-    asociere:    document.getElementById(`edit-asociere-${id}`).value,
     pret_alerta: document.getElementById(`edit-pret-alerta-${id}`).value,
     url:         document.getElementById(`edit-url-${id}`).value,
   };
@@ -593,10 +602,6 @@ async function saveEdit(id) {
       document.getElementById(`display-title-${id}`).textContent = payload.title;
       document.getElementById(`display-brand-${id}`).textContent = payload.brand || '—';
       document.getElementById(`display-pret-${id}`).textContent = payload.pret || '—';
-      const asocEl = document.getElementById(`display-asociere-${id}`);
-      asocEl.innerHTML = payload.asociere
-        ? payload.asociere.split(';').filter(x=>x).map(x=>`<span class="badge bg-success me-1">#${x}</span>`).join('')
-        : '<span class="text-muted">—</span>';
       status.innerHTML = '<span class="text-success"><i class="fas fa-check-circle"></i> Salvat</span>';
       setTimeout(() => toggleEdit(id), 800);
     }

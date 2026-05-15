@@ -66,40 +66,37 @@ def associate_run(product_id):
 @csrf.exempt
 @limiter.limit("30 per minute")
 def associate_confirm(product_id):
+    from app.models.product_association import ProductAssociation
     source = CompetitorProduct.query.get_or_404(product_id)
     data = request.get_json()
-    ids_to_save = [str(x) for x in (data.get("matched_ids") or []) if x]
+    ids_to_save = [int(x) for x in (data.get("matched_ids") or []) if str(x).isdigit()]
 
     if not ids_to_save:
         return jsonify({"error": "Niciun ID de salvat"}), 400
 
-    current = [x for x in (source.asociere or "").split(";") if x]
     for mid in ids_to_save:
-        if mid not in current:
-            current.append(mid)
-
-    source.asociere = ";".join(current)
+        ProductAssociation.add(source.id, mid)
     db.session.commit()
 
     create_notification(
         "Asociere confirmata",
-        f"Produsul #{source.id} asociat cu: {', '.join(['#' + x for x in ids_to_save])}",
+        f"Produsul #{source.id} asociat cu: {', '.join(['#' + str(x) for x in ids_to_save])}",
         "success",
     )
     audit("Asociere confirmata | product_id=%s | ids=%s", source.id, ids_to_save)
 
-    return jsonify({"saved": True, "asociere": source.asociere})
+    return jsonify({"saved": True})
 
 
 @bp.route("/associate/<int:product_id>/pret/<int:asociat_id>", methods=["POST"])
 @csrf.exempt
 @limiter.limit("30 per minute")
 def associate_pret(product_id, asociat_id):
+    from app.models.product_association import ProductAssociation
     source = CompetitorProduct.query.get_or_404(product_id)
     asociat = CompetitorProduct.query.get_or_404(asociat_id)
 
-    asocieri = [x for x in (source.asociere or "").split(";") if x]
-    if str(asociat_id) not in asocieri:
+    if not ProductAssociation.are_associated(source.id, asociat_id):
         return jsonify({"error": "Produsul nu este asociat"}), 400
 
     source.pret_preluat = asociat.pret

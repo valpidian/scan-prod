@@ -30,22 +30,66 @@ def _make_headers(user_agent=None):
     return {**_BASE_HEADERS, "User-Agent": ua}
 
 
-def _get(url, timeout=15, user_agent=None):
-    resp = requests.get(url, headers=_make_headers(user_agent), timeout=timeout, allow_redirects=True)
+def make_session(user_agent=None, base_url=None, block_resources=False):
+    """Session requests cu headers browser-like complete.
+    Refoloseste conexiunile TCP si pastreaza cookie-urile intre requesturi.
+
+    block_resources=True: adauga header Accept restrictiv care semnaleaza
+    serverului ca dorim doar HTML (nu imagini/CSS/JS). Nu blocheaza efectiv
+    download-ul la nivel de TCP (pentru asta ar fi nevoie de Playwright),
+    dar elimina URL-urile de resurse din coada de scraping si reduce
+    traficul de erori 404 pentru fisierele media."""
+    from urllib.parse import urlparse
+    ua = user_agent or random.choice(_USER_AGENTS)
+    accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    if block_resources:
+        # Prioritizeaza HTML, refuza imagini si stiluri explicit
+        accept = "text/html,application/xhtml+xml;q=0.9"
+    headers = {
+        "User-Agent": ua,
+        "Accept": accept,
+        "Accept-Language": "ro-RO,ro;q=0.9,en;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Cache-Control": "max-age=0",
+        "DNT": "1",
+    }
+    if base_url:
+        parsed = urlparse(base_url)
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+        headers["Referer"] = origin + "/"
+    s = requests.Session()
+    s.headers.update(headers)
+    return s
+
+
+def _get(url, timeout=15, user_agent=None, session=None):
+    if session:
+        resp = session.get(url, timeout=timeout, allow_redirects=True)
+    else:
+        resp = requests.get(url, headers=_make_headers(user_agent), timeout=timeout, allow_redirects=True)
     resp.raise_for_status()
     return resp
 
 
-def _get_with_retry(url, timeout=15, max_retries=2, retry_delay=5.0, user_agent=None):
+def _get_with_retry(url, timeout=15, max_retries=2, retry_delay=5.0, user_agent=None, session=None):
     """Fetch cu retry automat la erori 429/5xx. Returneaza (resp, duration_ms, error)."""
     last_error = None
     for attempt in range(max_retries + 1):
         t0 = time.time()
         try:
-            resp = requests.get(
-                url, headers=_make_headers(user_agent),
-                timeout=timeout, allow_redirects=True
-            )
+            if session:
+                resp = session.get(url, timeout=timeout, allow_redirects=True)
+            else:
+                resp = requests.get(
+                    url, headers=_make_headers(user_agent),
+                    timeout=timeout, allow_redirects=True
+                )
             duration_ms = int((time.time() - t0) * 1000)
             if resp.status_code == 429:
                 wait = retry_delay * (attempt + 1)
@@ -85,8 +129,46 @@ def _sleep_delay(delay, randomize=True):
     time.sleep(actual)
 
 
+_MEDIA_EXTENSIONS = frozenset([
+    # Imagini
+    ".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp",
+    ".png", ".gif", ".webp", ".svg", ".svgz",
+    ".ico", ".bmp", ".tiff", ".tif", ".avif",
+    ".heic", ".heif", ".raw", ".cr2", ".nef", ".dng",
+    # Documente
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+    ".odt", ".ods", ".odp", ".rtf", ".txt",
+    # Arhive
+    ".zip", ".rar", ".7z", ".gz", ".tar", ".bz2", ".xz", ".zst",
+    # Video
+    ".mp4", ".avi", ".mov", ".wmv", ".mkv", ".flv", ".webm",
+    ".m4v", ".mpg", ".mpeg", ".3gp", ".ogv",
+    # Audio
+    ".mp3", ".ogg", ".wav", ".flac", ".aac", ".m4a", ".wma", ".opus",
+    # Scripturi / stiluri
+    ".css", ".js", ".ts", ".jsx", ".tsx", ".map", ".min",
+    # Fonturi
+    ".woff", ".woff2", ".ttf", ".eot", ".otf",
+    # Executabile / date binare
+    ".exe", ".dll", ".so", ".dmg", ".deb", ".rpm", ".apk",
+    ".iso", ".img",
+])
+
+
+def _is_page_url(url):
+    """Returneaza True doar pentru URL-uri de pagini HTML (nu imagini/media/scripturi)."""
+    from urllib.parse import urlparse
+    path = urlparse(url).path.lower()
+    last_segment = path.rsplit("/", 1)[-1]
+    if "." in last_segment:
+        ext = "." + last_segment.rsplit(".", 1)[-1].split("?")[0]
+        return ext not in _MEDIA_EXTENSIONS
+    return True
+
+
 def fetch_sitemap_urls(sitemap_url, url_filter=None, timeout=15):
-    """Extrage URL-uri dintr-un sitemap XML (inclusiv sitemap index)."""
+    """Extrage URL-uri dintr-un sitemap XML (inclusiv sitemap index).
+    Filtreaza automat URL-uri de imagini/media (image:loc si extensii media)."""
     resp = _get(sitemap_url, timeout=timeout)
     soup = BeautifulSoup(resp.content, "xml")
 
@@ -99,7 +181,17 @@ def fetch_sitemap_urls(sitemap_url, url_filter=None, timeout=15):
                 urls.extend(fetch_sitemap_urls(loc.text.strip(), url_filter, timeout))
         return urls
 
-    locs = [tag.text.strip() for tag in soup.find_all("loc")]
+    # find_all("loc") cu lxml xml preia si <image:loc> — pastram doar <loc> directe
+    locs = []
+    for tag in soup.find_all("loc"):
+        # Excludem tagurile care sunt copii ai <image:*> sau <video:*>
+        parent = tag.parent
+        if parent and parent.name and ":" in parent.name:
+            continue
+        url = tag.text.strip()
+        if _is_page_url(url):
+            locs.append(url)
+
     if url_filter:
         pattern = re.compile(url_filter, re.IGNORECASE)
         locs = [u for u in locs if pattern.search(u)]
@@ -133,9 +225,9 @@ def _extract(soup, selector):
     return el.get_text(strip=True) if el else None
 
 
-def scrape_product_page(url, selectors, timeout=15, max_retries=2, retry_delay=5.0, user_agent=None):
+def scrape_product_page(url, selectors, timeout=15, max_retries=2, retry_delay=5.0, user_agent=None, session=None):
     resp, duration_ms, error = _get_with_retry(url, timeout=timeout, max_retries=max_retries,
-                                               retry_delay=retry_delay, user_agent=user_agent)
+                                               retry_delay=retry_delay, user_agent=user_agent, session=session)
     if error or resp is None:
         return {"url": url, "error": error or "No response", "duration_ms": duration_ms}
     try:

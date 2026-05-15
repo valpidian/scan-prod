@@ -8,7 +8,22 @@
       "Bash(python -c \"import sys; [print\\(l\\) for l in sys.stdin if 'UserWarning' not in l and 'warnings.warn' not in l and 'flask_limiter' not in l]\")",
       "Bash(pip show *)",
       "Bash(python -c \"import sys; [print\\(l\\) for l in sys.stdin if 'UserWarning' not in l and 'warnings' not in l and 'flask_limiter' not in l]\")",
-      "Bash(xargs grep -l \"scraping\")"
+      "Bash(xargs grep -l \"scraping\")",
+      "Bash(cd /d \"d:\\\\CODEX\\\\scan-pret\")",
+      "Bash(python -)",
+      "Bash(Get-ChildItem -Path \"d:\\\\CODEX\\\\scan-pret\" -Recurse -Force)",
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(Format-Table -AutoSize)",
+      "Bash(grep -E '\\\\.\\(py|md|txt|cfg|json|yml\\)$')",
+      "Bash(python -c \"from cryptography.fernet import Fernet; print\\(Fernet.generate_key\\(\\).decode\\(\\)\\)\")",
+      "Bash(python migrate_optimizations.py)",
+      "Bash(python -X utf8 migrate_optimizations.py)",
+      "Bash(python -X utf8 -c \"from app import create_app; app = create_app\\(\\); print\\('OK'\\)\")",
+      "Bash(python -X utf8 -c ' *)",
+      "Bash(python -X utf8 -c \"from app import create_app; create_app\\(\\); print\\('OK'\\)\")",
+      "PowerShell(Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -in @\\(5055, 5000, 8000, 8080\\) } | ForEach-Object { $p = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue; [PSCustomObject]@{Port=$_.LocalPort; PID=$_.OwningProcess; Name=$p.Name; CMD=\\($p.MainModule.FileName\\)} })",
+      "PowerShell(Get-Process python, python3, flask, gunicorn -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Id 24312 -Force)"
     ]
   }
 }

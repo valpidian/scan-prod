@@ -28,6 +28,7 @@ class ScrapingConfig(db.Model):
     retry_delay      = db.Column(db.Float,   nullable=False, default=5.0)
     user_agent       = db.Column(db.String(512), nullable=True)               # None = rotatie automata
     respect_robots   = db.Column(db.Boolean, nullable=False, default=False)
+    block_resources  = db.Column(db.Boolean, nullable=False, default=True)   # nu incarca imagini/CSS/JS
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

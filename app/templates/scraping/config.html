@@ -34,6 +34,10 @@
           onclick="stopJob()">
     <i class="fas fa-stop me-1"></i>OPRESTE
   </button>
+  <button type="button" class="btn btn-warning btn-sm btn-pill flex-shrink-0"
+          onclick="forceReset()" title="Reseteaza job blocat (fara thread activ)">
+    <i class="fas fa-exclamation-triangle me-1"></i>Reset fortat
+  </button>
 </div>
 
 <ul class="nav nav-tabs mb-0" id="scrapeTabs" role="tablist">
@@ -120,6 +124,11 @@
             <option value="scraped">Scraped ({{ stats.scraped }})</option>
             <option value="error">Erori ({{ stats.error }})</option>
           </select>
+          <button type="button" class="btn btn-outline-warning btn-sm btn-pill"
+                  onclick="cleanMediaUrls(this)"
+                  title="Sterge URL-urile de imagini/PDF/media ramase din import">
+            <i class="fas fa-broom me-1"></i>Curata media
+          </button>
         </div>
         <button type="button" class="btn btn-soft btn-sm btn-pill" onclick="loadUrls(urlsCurrentPage)">
           <i class="fas fa-sync"></i>
@@ -164,6 +173,7 @@
       <input type="hidden" name="randomize_delay" value="{{ '1' if not config or config.randomize_delay else '0' }}">
       <input type="hidden" name="respect_robots" value="{{ '1' if config and config.respect_robots else '0' }}">
       <input type="hidden" name="user_agent" value="{{ config.user_agent or '' if config else '' }}">
+      <input type="hidden" name="block_resources" value="{{ '1' if not config or config.block_resources else '0' }}">
       <table class="table table-sm mb-3" style="max-width:700px;">
         <thead class="table-light">
           <tr><th style="width:140px;">Camp</th><th>Selector CSS</th><th style="width:50px;"></th></tr>
@@ -278,6 +288,27 @@
                     </label>
                   </div>
                 </div>
+                <div class="col-12 mt-1">
+                  <div class="border rounded p-2 bg-light">
+                    <div class="small fw-semibold mb-2 text-muted">
+                      <i class="fas fa-ban me-1"></i>Blocare resurse inutile
+                    </div>
+                    <div class="d-flex gap-3 flex-wrap">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="block_resources"
+                               value="1" id="chk-block-res"
+                               {{ 'checked' if not config or config.block_resources else '' }}>
+                        <label class="form-check-label small" for="chk-block-res">
+                          Blocheaza imagini / CSS / JS
+                          <span class="text-muted d-block" style="font-size:.68rem;">
+                            Trimite header Accept: text/html — reduce erorile 404 de media
+                            si optimizeaza traficul de retea.
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <div class="col-12">
                   <label class="form-label small fw-semibold mb-1">
                     User-Agent
@@ -318,20 +349,59 @@
                 Configureaza selectorul <strong>Titlu</strong> in Tab 3.
               </div>
             {% else %}
-              <div class="d-flex gap-2 flex-wrap mb-3">
+              <div class="d-flex gap-2 flex-wrap mb-2">
                 <span class="badge bg-warning text-dark">{{ stats.pending }} pending</span>
                 <span class="badge bg-success">{{ stats.scraped }} scraped</span>
                 {% if stats.error %}<span class="badge bg-danger">{{ stats.error }} erori</span>{% endif %}
                 <span class="badge bg-secondary">{{ stats.total }} total</span>
               </div>
 
+              {# ── Reset status (vizibil cand nu ruleaza) ── #}
+              <div id="ctrl-reset" class="border rounded p-2 mb-3 bg-light">
+                <div class="small text-muted fw-semibold mb-2">
+                  <i class="fas fa-redo me-1"></i>Reset status URL-uri
+                </div>
+                <div class="d-flex gap-1 flex-wrap">
+                  <button class="btn btn-sm btn-outline-secondary btn-pill" onclick="resetUrls('errors', this)"
+                          {% if not stats.error %}disabled{% endif %}>
+                    <i class="fas fa-exclamation-triangle me-1 text-danger"></i>Erori → Pending
+                    <span class="badge bg-danger ms-1">{{ stats.error }}</span>
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary btn-pill" onclick="resetUrls('scraped', this)"
+                          {% if not stats.scraped %}disabled{% endif %}>
+                    <i class="fas fa-undo me-1"></i>Scraped → Pending
+                    <span class="badge bg-success ms-1">{{ stats.scraped }}</span>
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger btn-pill" onclick="resetUrls('all', this)"
+                          title="Reseteaza TOATE URL-urile la pending">
+                    <i class="fas fa-bomb me-1"></i>Tot
+                    <span class="badge bg-secondary ms-1">{{ stats.total }}</span>
+                  </button>
+                </div>
+              </div>
+
               {# Stare: idle #}
               <div id="ctrl-idle">
+                <div class="d-flex gap-3 mb-2 ps-1">
+                  <div class="form-check">
+                    <input type="checkbox" id="chk-include-errors" class="form-check-input"
+                           {% if not stats.error %}disabled{% endif %}>
+                    <label class="form-check-label small" for="chk-include-errors">
+                      Include erori ({{ stats.error }})
+                    </label>
+                  </div>
+                  <div class="form-check">
+                    <input type="checkbox" id="chk-random-order" class="form-check-input">
+                    <label class="form-check-label small" for="chk-random-order">
+                      Ordine aleatoare
+                    </label>
+                  </div>
+                </div>
                 <button type="button" class="btn btn-success btn-pill w-100 mb-2"
                         id="btn-start" onclick="startJob()"
-                        {% if stats.pending == 0 %}disabled title="Nu exista URL-uri pending"{% endif %}>
+                        {% if stats.pending == 0 and not stats.error %}disabled{% endif %}>
                   <i class="fas fa-play me-1"></i>
-                  Porneste scraping{% if stats.pending > 0 %} ({{ stats.pending }} URL-uri){% endif %}
+                  Porneste scraping{% if stats.pending > 0 %} ({{ stats.pending }}){% endif %}
                 </button>
                 {% if stats.scraped > 0 %}
                 <a href="{{ url_for('products.list_view') }}" class="btn btn-outline-primary btn-sm btn-pill w-100">
@@ -343,11 +413,14 @@
               {# Stare: running #}
               <div id="ctrl-running" class="d-none">
                 <div class="d-flex align-items-center gap-2 mb-2">
-                  <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                  <div class="spinner-border spinner-border-sm text-success flex-shrink-0" role="status"></div>
                   <strong class="small">In executie...</strong>
-                  <span id="ctrl-counter" class="text-muted small ms-auto"></span>
                 </div>
-                <div class="progress mb-3" style="height:8px;">
+                <div class="text-center mb-1">
+                  <span id="ctrl-counter" class="fw-bold" style="font-size:1.35rem;letter-spacing:.02em;color:#198754;"></span>
+                  <span id="ctrl-counter-label" class="text-muted ms-1" style="font-size:.8rem;">produse</span>
+                </div>
+                <div class="progress mb-3" style="height:10px;">
                   <div id="progress-bar-ctrl"
                        class="progress-bar progress-bar-striped progress-bar-animated bg-success"
                        style="width:0%"></div>
@@ -363,7 +436,21 @@
 
               {# Stare: done #}
               <div id="ctrl-done" class="d-none">
-                <div class="alert alert-success py-2 small mb-3" id="ctrl-done-msg"></div>
+                <div class="alert alert-success py-2 small mb-2" id="ctrl-done-msg"></div>
+                {# Verificare post-job #}
+                <div id="ctrl-verify" class="d-none mb-3">
+                  <div class="border rounded p-2 bg-warning bg-opacity-10">
+                    <div class="small fw-semibold mb-1">
+                      <i class="fas fa-search me-1"></i>Verificare rezultate
+                    </div>
+                    <div id="ctrl-verify-text" class="small text-muted mb-2">Se verifica...</div>
+                    <div id="ctrl-verify-actions" class="d-none">
+                      <button class="btn btn-sm btn-warning btn-pill" onclick="resetSuspicious()">
+                        <i class="fas fa-redo me-1"></i>Re-coadaza suspecte → Pending
+                      </button>
+                    </div>
+                  </div>
+                </div>
                 <div class="d-flex gap-2 flex-wrap">
                   <a href="{{ url_for('products.list_view') }}" class="btn btn-sm btn-primary btn-pill">
                     <i class="fas fa-list me-1"></i>Produse
@@ -397,15 +484,18 @@
     {# ── Log live ── #}
     <div id="run-log-section" class="mb-3 d-none">
       <div class="d-flex align-items-center justify-content-between mb-1">
-        <span class="small fw-semibold text-muted"><i class="fas fa-terminal me-1"></i>Log live</span>
-        <button type="button" class="btn btn-sm btn-soft btn-pill py-0 px-2"
-                onclick="document.getElementById('progress-log').innerHTML=''" title="Sterge log">
-          <i class="fas fa-trash-alt" style="font-size:.7rem;"></i>
-        </button>
+        <span class="fw-semibold text-muted"><i class="fas fa-terminal me-1"></i>Log live</span>
+        <div class="d-flex gap-2 align-items-center">
+          <span id="log-line-count" class="badge bg-secondary" style="font-size:.65rem;">0 linii</span>
+          <button type="button" class="btn btn-sm btn-soft btn-pill py-0 px-2"
+                  onclick="document.getElementById('progress-log').innerHTML='';document.getElementById('log-line-count').textContent='0 linii';" title="Sterge log">
+            <i class="fas fa-trash-alt" style="font-size:.7rem;"></i>
+          </button>
+        </div>
       </div>
       <div id="progress-log"
            class="border rounded p-2 bg-dark text-light"
-           style="max-height:300px;overflow-y:auto;font-size:0.74rem;font-family:monospace;line-height:1.5;">
+           style="height:420px;overflow-y:auto;font-size:0.78rem;font-family:monospace;line-height:1.6;">
       </div>
     </div>
 
@@ -472,9 +562,10 @@
 const CODE = "{{ competitor.internal_code }}";
 let urlsCurrentPage = 1;
 let urlsLoaded = false;
-let pollInterval = null;
-let progressOffset = 0;
 let jobHistoryLoaded = false;
+let _eventSource = null;
+let _pollInterval = null;
+let _pollOffset   = 0;
 
 // ── TAB SWITCH ─────────────────────────────────────────────────────────────
 function switchTab(id) {
@@ -484,7 +575,7 @@ function switchTab(id) {
 
 document.querySelectorAll('[data-bs-toggle="tab"]').forEach(btn => {
   btn.addEventListener('shown.bs.tab', e => {
-    const target = e.target.getAttribute('data-bs-target');
+    const target = e?.target?.getAttribute?.('data-bs-target') || btn.getAttribute('data-bs-target');
     if (target === '#tab-urls' && !urlsLoaded) {
       urlsLoaded = true;
       loadUrls(1);
@@ -607,6 +698,27 @@ function copyUrl(btn) {
     btn.classList.replace('btn-outline-secondary', 'btn-success');
     setTimeout(() => { btn.innerHTML = orig; btn.classList.replace('btn-success', 'btn-outline-secondary'); }, 1500);
   });
+}
+
+// ── CURATA URL-URI MEDIA ───────────────────────────────────────────────────
+function cleanMediaUrls(btn) {
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Se curata...';
+  fetch(`/scraping/${CODE}/urls/clean-media`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    if (data.ok) {
+      btn.innerHTML = `<i class="fas fa-check me-1"></i>${data.deleted} sterse`;
+      btn.classList.replace('btn-outline-warning', 'btn-success');
+      setTimeout(() => { btn.innerHTML = orig; btn.classList.replace('btn-success', 'btn-outline-warning'); loadUrls(1); }, 2000);
+    } else {
+      btn.innerHTML = orig;
+      alert('Eroare la curatare.');
+    }
+  })
+  .catch(e => { btn.disabled = false; btn.innerHTML = orig; alert('Eroare: ' + e); });
 }
 
 // ── AUTO-DISCOVER ──────────────────────────────────────────────────────────
@@ -757,13 +869,17 @@ function syncSelectorsToAntiblock() {
 
 // ── SCRAPING JOB: start ────────────────────────────────────────────────────
 function startJob() {
-  fetch(`/scraping/${CODE}/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+  const includeErrors = document.getElementById('chk-include-errors')?.checked || false;
+  const randomOrder   = document.getElementById('chk-random-order')?.checked || false;
+  fetch(`/scraping/${CODE}/start`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ include_errors: includeErrors, random_order: randomOrder })
+  })
   .then(r => r.json())
   .then(data => {
     if (data.error) { alert(data.error); return; }
     setJobState('running');
-    progressOffset = 0;
-    pollInterval = setInterval(pollStatus, 1500);
+    openStream();
   })
   .catch(e => alert('Eroare pornire job: ' + e));
 }
@@ -779,54 +895,131 @@ function stopJob() {
   .catch(e => alert('Eroare oprire: ' + e));
 }
 
-// ── POLL STATUS ────────────────────────────────────────────────────────────
-function pollStatus() {
-  fetch(`/scraping/${CODE}/status?offset=${progressOffset}`)
+function forceReset() {
+  if (!confirm('Reseteaza job-ul blocat?\nFoloseste doar daca job-ul apare "in executie" dar nu mai proceseaza nimic.')) return;
+  fetch(`/scraping/${CODE}/force-reset`, { method: 'POST' })
   .then(r => r.json())
-  .then(data => {
-    progressOffset = data.offset || progressOffset;
-
-    data.progress.forEach(p => appendLog(p));
-
-    // Actualizeaza progress bar si counter
-    if (data.progress.length) {
-      const last = data.progress[data.progress.length - 1];
-      if (last.current && last.total) {
-        const pct = Math.round(last.current / last.total * 100);
-        const pctStr = `${last.current}/${last.total} (${pct}%)`;
-        const bar = document.getElementById('progress-bar-ctrl');
-        if (bar) bar.style.width = pct + '%';
-        const barE = document.getElementById('progress-bar-emergency');
-        if (barE) barE.style.width = pct + '%';
-        const ctr = document.getElementById('ctrl-counter');
-        if (ctr) ctr.textContent = pctStr;
-        const ectr = document.getElementById('emergency-counter');
-        if (ectr) ectr.textContent = pctStr;
-      }
-    }
-
-    if (data.status === 'done') {
-      clearInterval(pollInterval); pollInterval = null;
-      const s = data.stats || {};
-      const msg = `<i class="fas fa-check-circle me-1"></i>Finalizat: <strong>${s.inserted||0}</strong> inserate, <strong>${s.updated||0}</strong> actualizate, <strong>${s.errors||0}</strong> erori din <strong>${s.total||0}</strong>.`;
-      document.getElementById('ctrl-done-msg').innerHTML = msg;
-      setJobState('done');
-      loadJobHistory();
-    } else if (data.status === 'stopped') {
-      clearInterval(pollInterval); pollInterval = null;
-      const s = data.stats || {};
-      const msg = `<i class="fas fa-stop-circle me-1"></i>Oprit manual. ${s.inserted||0} inserate, ${s.updated||0} actualizate, ${s.errors||0} erori.`;
-      document.getElementById('ctrl-stopped-msg').innerHTML = msg;
-      setJobState('stopped');
-      loadJobHistory();
-    } else if (data.status === 'error') {
-      clearInterval(pollInterval); pollInterval = null;
-      document.getElementById('ctrl-error-msg').textContent = 'Eroare critica: ' + (data.error || 'necunoscuta');
-      setJobState('error');
-      loadJobHistory();
-    }
+  .then(() => {
+    if (_eventSource) { _eventSource.close(); _eventSource = null; }
+    stopPolling();
+    location.reload();
   })
-  .catch(e => console.warn('Poll error:', e));
+  .catch(e => alert('Eroare reset: ' + e));
+}
+
+// ── Proceseaza datele de la SSE sau polling ────────────────────────────────
+function handleJobData(data) {
+  (data.progress || []).forEach(p => appendLog(p));
+
+  // Actualizeaza progress bar si counter
+  if (data.progress && data.progress.length) {
+    const last = data.progress[data.progress.length - 1];
+    if (last.current && last.total) {
+      const pct = Math.round(last.current / last.total * 100);
+      const pb1 = document.getElementById('progress-bar-ctrl');
+      const pb2 = document.getElementById('progress-bar-emergency');
+      if (pb1) pb1.style.width = pct + '%';
+      if (pb2) pb2.style.width = pct + '%';
+      // Ctrl counter: "200/400" mare + "produse (50%)" mic
+      const ctr = document.getElementById('ctrl-counter');
+      if (ctr) ctr.textContent = `${last.current}/${last.total}`;
+      const lbl = document.getElementById('ctrl-counter-label');
+      if (lbl) lbl.textContent = `produse (${pct}%)`;
+      // Emergency bar counter
+      const ectr = document.getElementById('emergency-counter');
+      if (ectr) ectr.textContent = `${last.current}/${last.total} (${pct}%)`;
+    }
+  }
+
+  if (data.status === 'done') {
+    if (_eventSource) { _eventSource.close(); _eventSource = null; }
+    stopPolling();
+    const s = data.stats || {};
+    document.getElementById('ctrl-done-msg').innerHTML =
+      `<i class="fas fa-check-circle me-1"></i>Finalizat: <strong>${s.inserted||0}</strong> inserate, <strong>${s.updated||0}</strong> actualizate, <strong>${s.errors||0}</strong> erori din <strong>${s.total||0}</strong>.`;
+    setJobState('done'); loadJobHistory(); verifyResults();
+  } else if (data.status === 'stopped') {
+    if (_eventSource) { _eventSource.close(); _eventSource = null; }
+    stopPolling();
+    const s = data.stats || {};
+    document.getElementById('ctrl-stopped-msg').innerHTML =
+      `<i class="fas fa-stop-circle me-1"></i>Oprit manual. ${s.inserted||0} inserate, ${s.updated||0} actualizate, ${s.errors||0} erori.`;
+    setJobState('stopped'); loadJobHistory();
+  } else if (data.status === 'error') {
+    if (_eventSource) { _eventSource.close(); _eventSource = null; }
+    stopPolling();
+    const errMsg = data.error || 'necunoscuta';
+    document.getElementById('ctrl-error-msg').textContent = 'Eroare critica: ' + errMsg;
+    appendLog({ status: 'error', message: 'Eroare critica: ' + errMsg, ts: now() });
+    setJobState('error'); loadJobHistory();
+  } else if (data.status === 'idle') {
+    if (_eventSource) { _eventSource.close(); _eventSource = null; }
+    stopPolling();
+    setJobState('idle');
+  }
+}
+
+// ── Polling fallback ───────────────────────────────────────────────────────
+function startPolling() {
+  if (_pollInterval) return;
+  _pollOffset = 0;
+  _pollInterval = setInterval(function() {
+    fetch(`/scraping/${CODE}/status?offset=${_pollOffset}`)
+    .then(r => r.json())
+    .then(data => {
+      _pollOffset = (data.offset != null) ? data.offset : _pollOffset + (data.progress || []).length;
+      handleJobData(data);
+    })
+    .catch(function() {});
+  }, 1000);
+}
+
+function stopPolling() {
+  if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+}
+
+// ── SSE stream ─────────────────────────────────────────────────────────────
+function openStream() {
+  if (_eventSource) { _eventSource.close(); _eventSource = null; }
+  stopPolling();
+
+  const logSection = document.getElementById('run-log-section');
+  if (logSection) logSection.classList.remove('d-none');
+  appendLog({ status: 'start', message: 'Se conecteaza la stream...', ts: now() });
+
+  let sseReceivedFirst = false;
+
+  // Daca SSE nu livreaza niciun eveniment in 5 secunde, comuta la polling
+  const sseTimeout = setTimeout(function() {
+    if (!sseReceivedFirst) {
+      if (_eventSource) { _eventSource.close(); _eventSource = null; }
+      appendLog({ status: 'start', message: 'SSE indisponibil — se comuta la polling...', ts: now() });
+      startPolling();
+    }
+  }, 5000);
+
+  _eventSource = new EventSource(`/scraping/${CODE}/stream`);
+
+  _eventSource.onmessage = function(e) {
+    if (!sseReceivedFirst) {
+      sseReceivedFirst = true;
+      clearTimeout(sseTimeout);
+    }
+    let data;
+    try { data = JSON.parse(e.data); } catch(ex) { return; }
+    handleJobData(data);
+  };
+
+  _eventSource.onerror = function() {
+    if (!sseReceivedFirst) {
+      clearTimeout(sseTimeout);
+      if (_eventSource) { _eventSource.close(); _eventSource = null; }
+      appendLog({ status: 'start', message: 'SSE eroare — se comuta la polling...', ts: now() });
+      startPolling();
+    } else {
+      appendLog({ status: 'start', message: 'SSE: reconectare...', ts: now() });
+    }
+  };
 }
 
 // ── APPEND LOG LINE ────────────────────────────────────────────────────────
@@ -836,15 +1029,27 @@ function appendLog(p) {
   if (!log) return;
   if (logSection) logSection.classList.remove('d-none');
 
-  const line = document.createElement('div');
   const cls = p.status === 'error' ? 'log-error' : p.status === 'ok' ? 'log-ok' : p.status === 'done' ? 'log-done' : 'log-start';
-  line.className = cls;
   const icon = p.status === 'error' ? '✗' : p.status === 'ok' ? '✓' : p.status === 'done' ? '★' : '→';
   const ts = p.ts || now();
-  const dur = p.duration_ms ? ` [${p.duration_ms}ms]` : '';
-  line.textContent = `[${ts}] ${icon} ${p.message || p.url || ''}${dur}`;
+  const dur = p.duration_ms ? ` <span style="opacity:.5">[${p.duration_ms}ms]</span>` : '';
+
+  const line = document.createElement('div');
+  line.className = cls + ' mb-0';
+  line.innerHTML = `[${ts}] ${icon} ${escHtml(p.message || '')}${dur}`;
   log.appendChild(line);
   log.scrollTop = log.scrollHeight;
+
+  // Actualizeaza contorul de linii
+  const cntEl = document.getElementById('log-line-count');
+  if (cntEl) {
+    const n = log.children.length;
+    cntEl.textContent = n + (n === 1 ? ' linie' : ' linii');
+  }
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 function now() {
@@ -858,9 +1063,83 @@ function setJobState(state) {
     const el = document.getElementById(`ctrl-${s}`);
     if (el) el.classList.toggle('d-none', s !== state);
   });
-  // Bara de urgenta: vizibila pe orice tab cat timp job-ul ruleaza
+  // Reset vizibil cand nu ruleaza
+  const resetEl = document.getElementById('ctrl-reset');
+  if (resetEl) resetEl.classList.toggle('d-none', state === 'running');
+  // Bara de urgenta
   const bar = document.getElementById('emergency-stop-bar');
   if (bar) bar.classList.toggle('d-none', state !== 'running');
+}
+
+// ── RESET URL STATUS ────────────────────────────────────────────────────────
+function resetUrls(which, btn) {
+  const labels = { errors: 'URL-urile cu erori', scraped: 'URL-urile scraped', all: 'TOATE URL-urile' };
+  if (!confirm(`Resetezi ${labels[which] || which} la status "pending"?`)) return;
+  const origHtml = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+  fetch(`/scraping/${CODE}/urls/reset`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ which })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      if (btn) btn.innerHTML = `<i class="fas fa-check me-1"></i>${data.reset} resetate`;
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+      alert('Eroare la reset.');
+    }
+  })
+  .catch(e => {
+    if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+    alert('Eroare: ' + e);
+  });
+}
+
+// ── VERIFICARE REZULTATE ───────────────────────────────────────────────────
+function verifyResults() {
+  const section = document.getElementById('ctrl-verify');
+  const text    = document.getElementById('ctrl-verify-text');
+  const actions = document.getElementById('ctrl-verify-actions');
+  if (!section) return;
+  section.classList.remove('d-none');
+  text.textContent = 'Se verifica rezultatele...';
+
+  fetch(`/scraping/${CODE}/verify`)
+  .then(r => r.json())
+  .then(data => {
+    if (!data.total_scraped) { section.classList.add('d-none'); return; }
+    if (!data.suspicious_count) {
+      text.innerHTML = `<i class="fas fa-check-circle text-success me-1"></i>Toate cele <strong>${data.total_scraped}</strong> produse scraped par OK.`;
+      return;
+    }
+    const { issues } = data;
+    const parts = [];
+    if (issues.titlu_generic) parts.push(`${issues.titlu_generic} titluri generice`);
+    if (issues.fara_pret)     parts.push(`${issues.fara_pret} fara pret`);
+    if (issues.sku_auto)      parts.push(`${issues.sku_auto} SKU auto-generat`);
+    text.innerHTML = `<i class="fas fa-exclamation-triangle text-warning me-1"></i><strong>${data.suspicious_count}</strong> produse suspecte din ${data.total_scraped}: ${parts.join(', ')}.`;
+    actions.classList.remove('d-none');
+  })
+  .catch(() => section.classList.add('d-none'));
+}
+
+function resetSuspicious() {
+  if (!confirm('Resetezi URL-urile cu produse suspecte la "pending" pentru re-scraping?')) return;
+  fetch(`/scraping/${CODE}/urls/reset`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ which: 'suspicious' })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      document.getElementById('ctrl-verify-text').innerHTML =
+        `<i class="fas fa-check me-1 text-success"></i>${data.reset} URL-uri resetate la pending.`;
+      document.getElementById('ctrl-verify-actions').classList.add('d-none');
+    }
+  })
+  .catch(e => alert('Eroare: ' + e));
 }
 
 // ── ISTORIC JOB-URI ────────────────────────────────────────────────────────
@@ -997,9 +1276,8 @@ document.addEventListener('DOMContentLoaded', () => {
   {% if job and job.status == 'running' %}
   switchTab('tab-run');
   setJobState('running');
-  progressOffset = 0;
   document.getElementById('run-log-section')?.classList.remove('d-none');
-  pollInterval = setInterval(pollStatus, 1500);
+  openStream();
   {% endif %}
 });
 </script>

@@ -29,6 +29,7 @@ def advanced():
 @bp.route("/asociaza", methods=["POST"])
 @csrf.exempt
 def asociaza():
+    from app.models.product_association import ProductAssociation
     data = request.get_json()
     pid = data.get("product_id")
     aid = data.get("asociat_id")
@@ -41,19 +42,11 @@ def asociaza():
 
     if not p or not a:
         return jsonify({"error": "Produs negasit"}), 404
-
     if p.id == a.id:
         return jsonify({"error": "Nu poti asocia un produs cu el insusi"}), 400
 
-    def _add(product, other_id):
-        current = [x for x in (product.asociere or "").split(";") if x]
-        if str(other_id) not in current:
-            current.append(str(other_id))
-            product.asociere = ";".join(current)
-
-    _add(p, a.id)
-    _add(a, p.id)
+    ProductAssociation.add(p.id, a.id)
     db.session.commit()
 
-    return jsonify({"ok": True, "asociere_p": p.asociere, "asociere_a": a.asociere})
+    return jsonify({"ok": True})
 
