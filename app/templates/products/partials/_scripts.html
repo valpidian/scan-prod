@@ -117,21 +117,22 @@ function setRowSelected(id, checked) {
   updateBulkBar();
 }
 
-document.querySelectorAll('.row-check').forEach(cb => {
-  cb.addEventListener('change', function() {
-    setRowSelected(parseInt(this.value), this.checked);
-  });
+// Delegare eveniment pentru toate checkbox-urile (inclusiv cele adaugate dinamic)
+document.getElementById('products-table')?.addEventListener('change', function(e) {
+  const cb = e.target.closest('.row-check');
+  if (cb) setRowSelected(parseInt(cb.value), cb.checked);
 });
 
-document.getElementById('check-all-page').addEventListener('change', function() {
+document.getElementById('check-all-page')?.addEventListener('change', function() {
   document.querySelectorAll('.row-check').forEach(cb => {
     setRowSelected(parseInt(cb.value), this.checked);
   });
 });
 
-document.getElementById('btn-deselect-all').addEventListener('click', function() {
+document.getElementById('btn-deselect-all')?.addEventListener('click', function() {
   [...selectedIds].forEach(id => setRowSelected(id, false));
-  document.getElementById('check-all-page').checked = false;
+  const checkAll = document.getElementById('check-all-page');
+  if (checkAll) checkAll.checked = false;
 });
 
 function selectPage() {
@@ -153,7 +154,7 @@ function selectWithoutAsociere() {
 }
 
 // ── Procesare AI in masa ──────────────────────────────────────────────────
-document.getElementById('btn-ai-batch').addEventListener('click', function() {
+document.getElementById('btn-ai-batch')?.addEventListener('click', function() {
   if (!selectedIds.size) return;
   window.location.href = `/products/ai-batch?${[...selectedIds].map(id => `ids=${id}`).join('&')}`;
 });
@@ -169,7 +170,7 @@ function updateScoreCell(productId, pct) {
 }
 
 // ── Calculeaza potriviri (scoring engine) ─────────────────────────────────
-document.getElementById('btn-score-match').addEventListener('click', function() {
+document.getElementById('btn-score-match')?.addEventListener('click', function() {
   if (!selectedIds.size) return;
   document.getElementById('score-modal-count').textContent = selectedIds.size;
   new bootstrap.Modal(document.getElementById('score-modal')).show();
@@ -213,7 +214,7 @@ async function runScoring() {
 }
 
 // ── Stergere in grup ──────────────────────────────────────────────────────
-document.getElementById('btn-bulk-delete').addEventListener('click', async function() {
+document.getElementById('btn-bulk-delete')?.addEventListener('click', async function() {
   if (!selectedIds.size) return;
   if (!confirm(`Stergi ${selectedIds.size} produse selectate? Actiunea este ireversibila.\nSe vor sterge si istoricul de preturi, asocierile si log-urile AI.`)) return;
   const btn = this;
@@ -650,10 +651,6 @@ document.addEventListener('click', async function(e) {
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       tbody.insertAdjacentHTML('beforeend', renderProductRows(data.products));
-      data.products.forEach(p => {
-        document.getElementById(`row-${p.id}`)?.querySelector('.row-check')
-          ?.addEventListener('change', function() { setRowSelected(parseInt(this.value), this.checked); });
-      });
       if (!data.has_next) {
         iscrDone = true;
         loader.innerHTML = `<small class="text-muted">Toate ${data.total} produsele au fost incarcate.</small>`;
