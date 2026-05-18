@@ -163,11 +163,37 @@ def detail(product_id):
 @bp.route("/bulk-delete", methods=["POST"])
 @csrf.exempt
 def bulk_delete():
+    from sqlalchemy import bindparam, text as sa_text
     data = request.get_json()
     ids = [int(x) for x in (data.get("ids") or []) if str(x).isdigit()]
     if not ids:
         return jsonify({"error": "Niciun ID primit"}), 400
-    deleted = CompetitorProduct.query.filter(CompetitorProduct.id.in_(ids)).delete(synchronize_session=False)
+
+    # SQLite are limita de 999 variabile per query — impartim in blocuri de 900
+    CHUNK = 900
+    deleted = 0
+    for i in range(0, len(ids), CHUNK):
+        chunk = ids[i:i + CHUNK]
+        ph = ",".join(str(x) for x in chunk)  # placeholders sigure (sunt int validati)
+
+        # Curata inregistrarile relationate inainte de stergerea produselor
+        db.session.execute(sa_text(f"DELETE FROM price_history WHERE product_id IN ({ph})"))
+        db.session.execute(sa_text(f"DELETE FROM ai_association_log WHERE product_id IN ({ph})"))
+        db.session.execute(sa_text(
+            f"DELETE FROM product_match_scores WHERE product_id IN ({ph}) OR matched_product_id IN ({ph})"
+        ))
+        db.session.execute(sa_text(
+            f"DELETE FROM product_associations WHERE product_id IN ({ph}) OR associated_id IN ({ph})"
+        ))
+        db.session.execute(sa_text(
+            f"DELETE FROM excluded_associations WHERE product_id IN ({ph}) OR excluded_product_id IN ({ph})"
+        ))
+        db.session.execute(sa_text(f"UPDATE scraping_urls SET product_id = NULL WHERE product_id IN ({ph})"))
+
+        deleted += CompetitorProduct.query.filter(
+            CompetitorProduct.id.in_(chunk)
+        ).delete(synchronize_session=False)
+
     db.session.commit()
     return jsonify({"ok": True, "deleted": deleted})
 

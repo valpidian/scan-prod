@@ -139,6 +139,13 @@ function selectPage() {
   document.getElementById('check-all-page').checked = true;
 }
 
+function selectAllLoaded() {
+  document.querySelectorAll('#products-table tbody tr[data-id]').forEach(tr => {
+    setRowSelected(parseInt(tr.dataset.id), true);
+  });
+  document.getElementById('check-all-page').checked = true;
+}
+
 function selectWithoutAsociere() {
   document.querySelectorAll('#products-table tbody tr[data-id]').forEach(tr => {
     if (tr.dataset.hasAsociere === '0') setRowSelected(parseInt(tr.dataset.id), true);
@@ -208,25 +215,38 @@ async function runScoring() {
 // ── Stergere in grup ──────────────────────────────────────────────────────
 document.getElementById('btn-bulk-delete').addEventListener('click', async function() {
   if (!selectedIds.size) return;
-  if (!confirm(`Stergi ${selectedIds.size} produse selectate? Actiunea este ireversibila.`)) return;
+  if (!confirm(`Stergi ${selectedIds.size} produse selectate? Actiunea este ireversibila.\nSe vor sterge si istoricul de preturi, asocierile si log-urile AI.`)) return;
   const btn = this;
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Se sterge...';
+  btn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> Se sterge ${selectedIds.size}...`;
   try {
     const resp = await fetch('/products/bulk-delete', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ids: [...selectedIds]}),
     });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${resp.status}`);
+    }
     const data = await resp.json();
     if (data.ok) {
-      [...selectedIds].forEach(id => {
-        ['row', 'edit-row', 'history-row', 'ai-history-row', 'asocieri-row'].forEach(prefix => {
-          document.getElementById(`${prefix}-${id}`)?.remove();
+      const toRemove = [...selectedIds];
+      // Sterge randurile din DOM in batch-uri mici pentru a nu bloca UI-ul
+      const batchSize = 200;
+      for (let i = 0; i < toRemove.length; i += batchSize) {
+        toRemove.slice(i, i + batchSize).forEach(id => {
+          ['row', 'edit-row', 'history-row', 'ai-history-row', 'asocieri-row'].forEach(prefix => {
+            document.getElementById(`${prefix}-${id}`)?.remove();
+          });
         });
-      });
+        if (i + batchSize < toRemove.length) {
+          await new Promise(r => setTimeout(r, 0)); // yield la browser intre batch-uri
+        }
+      }
       selectedIds.clear();
       updateBulkBar();
+      document.getElementById('check-all-page').checked = false;
     }
   } catch(err) {
     alert('Eroare la stergere: ' + err.message);
