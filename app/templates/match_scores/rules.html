@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}Reguli de potrivire | Scan Pret{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <span class="eyebrow">Scoring Engine</span>
+    <h4 class="mb-0">Reguli de potrivire</h4>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('match_scores.review') }}" class="btn btn-soft btn-pill btn-sm">
+      <i class="fas fa-check-double me-1"></i> Revizuire potriviri
+    </a>
+    <button class="btn btn-primary btn-pill btn-sm" onclick="showAddForm()">
+      <i class="fas fa-plus me-1"></i> Regula noua
+    </button>
+  </div>
+</div>
+
+<!-- Formular regula noua -->
+<div class="card mb-4 d-none" id="add-form-card">
+  <div class="card-header"><strong>Adauga regula noua</strong></div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label small fw-bold">Nume</label>
+        <input type="text" class="form-control form-control-sm" id="new-name" placeholder="ex: Similaritate SKU avansat">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-bold">Tip regula</label>
+        <select class="form-select form-select-sm" id="new-type">
+          <option value="sku_exact">sku_exact</option>
+          <option value="sku_partial">sku_partial</option>
+          <option value="sku_in_title">sku_in_title</option>
+          <option value="model_match">model_match</option>
+          <option value="title_similarity">title_similarity</option>
+          <option value="brand_bonus">brand_bonus</option>
+          <option value="price_range">price_range</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small fw-bold">Greutate (0-1)</label>
+        <input type="number" class="form-control form-control-sm" id="new-weight" value="0.5" min="0" max="1" step="0.05">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-bold">Params JSON (optional)</label>
+        <input type="text" class="form-control form-control-sm" id="new-params" placeholder='{"threshold": 0.7}'>
+      </div>
+      <div class="col-12">
+        <label class="form-label small fw-bold">Descriere</label>
+        <input type="text" class="form-control form-control-sm" id="new-desc" placeholder="Descriere scurta a regulii">
+      </div>
+    </div>
+    <div class="d-flex gap-2 mt-3">
+      <button class="btn btn-primary btn-pill btn-sm" onclick="saveNewRule()">
+        <i class="fas fa-save me-1"></i> Salveaza
+      </button>
+      <button class="btn btn-soft btn-pill btn-sm" onclick="hideAddForm()">Anuleaza</button>
+    </div>
+    <div id="add-error" class="text-danger small mt-2 d-none"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong>Reguli active si inactive</strong>
+    <small class="text-muted">Regulile sistem (★) nu pot fi sterse</small>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width:40px;">Activ</th>
+          <th>Nume</th>
+          <th>Tip</th>
+          <th>Greutate</th>
+          <th>Params</th>
+          <th>Descriere</th>
+          <th style="width:80px;"></th>
+        </tr>
+      </thead>
+      <tbody id="rules-tbody">
+        {% for rule in rules %}
+        <tr id="rule-row-{{ rule.id }}">
+          <td class="text-center">
+            <div class="form-check form-switch mb-0 d-flex justify-content-center">
+              <input class="form-check-input" type="checkbox" role="switch"
+                     id="toggle-{{ rule.id }}"
+                     {% if rule.is_active %}checked{% endif %}
+                     onchange="toggleRule({{ rule.id }}, this)">
+            </div>
+          </td>
+          <td>
+            <span class="fw-semibold small">{{ rule.name }}</span>
+            {% if rule.is_system %}<span class="badge bg-secondary ms-1" style="font-size:.65rem">★ sistem</span>{% endif %}
+          </td>
+          <td><code class="small">{{ rule.rule_type }}</code></td>
+          <td>
+            <span class="badge rounded-pill bg-primary" id="weight-badge-{{ rule.id }}"
+                  style="font-size:.75rem; cursor:pointer;"
+                  onclick="editWeight({{ rule.id }}, {{ rule.weight }})">
+              {{ '%.2f'|format(rule.weight) }}
+            </span>
+          </td>
+          <td>
+            {% if rule.params %}
+              <code class="small text-muted">{{ rule.params }}</code>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td><small class="text-muted">{{ rule.description or '—' }}</small></td>
+          <td class="text-end">
+            {% if not rule.is_system %}
+            <button class="btn btn-xs btn-outline-danger py-0 px-1"
+                    onclick="deleteRule({{ rule.id }}, '{{ rule.name | e }}')">
+              <i class="fas fa-trash fa-xs"></i>
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal editare greutate -->
+<div class="modal fade" id="weight-modal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title mb-0">Modifica greutatea</h6>
+        <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-rule-id">
+        <label class="form-label small fw-bold">Greutate (0.0 – 1.0)</label>
+        <input type="number" class="form-control" id="edit-weight" min="0" max="1" step="0.05">
+      </div>
+      <div class="modal-footer py-2">
+        <button class="btn btn-primary btn-sm btn-pill" onclick="saveWeight()">Salveaza</button>
+        <button class="btn btn-soft btn-sm btn-pill" data-bs-dismiss="modal">Anuleaza</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showAddForm() {
+  document.getElementById('add-form-card').classList.remove('d-none');
+  document.getElementById('new-name').focus();
+}
+function hideAddForm() {
+  document.getElementById('add-form-card').classList.add('d-none');
+}
+
+async function saveNewRule() {
+  const name       = document.getElementById('new-name').value.trim();
+  const rule_type  = document.getElementById('new-type').value;
+  const weight     = parseFloat(document.getElementById('new-weight').value);
+  const paramsRaw  = document.getElementById('new-params').value.trim();
+  const description = document.getElementById('new-desc').value.trim();
+  const errEl       = document.getElementById('add-error');
+  errEl.classList.add('d-none');
+
+  let params = null;
+  if (paramsRaw) {
+    try { params = JSON.parse(paramsRaw); } catch { errEl.textContent = 'Params JSON invalid'; errEl.classList.remove('d-none'); return; }
+  }
+
+  const res = await fetch('/match-scores/rules/save', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name, rule_type, weight, params, description, is_active: true}),
+  });
+  const data = await res.json();
+  if (!res.ok) { errEl.textContent = data.error || 'Eroare'; errEl.classList.remove('d-none'); return; }
+  location.reload();
+}
+
+async function toggleRule(id, cb) {
+  const res = await fetch(`/match-scores/rules/${id}/toggle`, {method: 'POST'});
+  const data = await res.json();
+  if (!res.ok) { cb.checked = !cb.checked; alert(data.error || 'Eroare'); }
+}
+
+function editWeight(id, current) {
+  document.getElementById('edit-rule-id').value = id;
+  document.getElementById('edit-weight').value = current;
+  new bootstrap.Modal(document.getElementById('weight-modal')).show();
+}
+
+async function saveWeight() {
+  const id     = document.getElementById('edit-rule-id').value;
+  const weight = parseFloat(document.getElementById('edit-weight').value);
+  const res = await fetch('/match-scores/rules/save', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({id, weight}),
+  });
+  const data = await res.json();
+  if (res.ok) {
+    document.getElementById(`weight-badge-${id}`).textContent = weight.toFixed(2);
+    bootstrap.Modal.getInstance(document.getElementById('weight-modal')).hide();
+  } else {
+    alert(data.error || 'Eroare');
+  }
+}
+
+async function deleteRule(id, name) {
+  if (!confirm(`Stergi regula "${name}"?`)) return;
+  const res = await fetch(`/match-scores/rules/${id}/delete`, {method: 'POST'});
+  if (res.ok) { document.getElementById(`rule-row-${id}`).remove(); }
+  else { alert((await res.json()).error || 'Eroare'); }
+}
+</script>
+{% endblock %}

@@ -33,9 +33,26 @@ def create_app(config_object=Config):
         from app import models  # noqa: F401
 
         db.create_all()
+        from app.models.prompt_template import PromptTemplate
+        from app.models.matching_rule import MatchingRule
+        PromptTemplate.seed_defaults()
+        MatchingRule.seed_defaults()
+        _migrate_add_columns()
         _cleanup_stale_jobs()
 
     return app
+
+
+def _migrate_add_columns():
+    """Adauga coloane noi la tabele existente daca lipsesc (SQLite nu le adauga automat)."""
+    try:
+        with db.engine.connect() as conn:
+            cols = {row[1] for row in conn.execute(db.text("PRAGMA table_info(ai_association_log)"))}
+            if "prompt_name" not in cols:
+                conn.execute(db.text("ALTER TABLE ai_association_log ADD COLUMN prompt_name VARCHAR(100)"))
+                conn.commit()
+    except Exception:
+        pass
 
 
 def _cleanup_stale_jobs():
@@ -88,6 +105,7 @@ def register_blueprints(app):
     from app.routes.search import bp as search_bp
     from app.routes.search_config import bp as search_config_bp
     from app.routes.scraping import bp as scraping_bp
+    from app.routes.match_scores import bp as match_scores_bp
 
     app.register_blueprint(competitors_bp, url_prefix="/competitors")
     app.register_blueprint(cleanup_bp, url_prefix="/cleanup")
@@ -99,6 +117,7 @@ def register_blueprints(app):
     app.register_blueprint(ai_bp, url_prefix="/ai")
     app.register_blueprint(notifications_bp, url_prefix="/notifications")
     app.register_blueprint(scraping_bp, url_prefix="/scraping")
+    app.register_blueprint(match_scores_bp, url_prefix="/match-scores")
 
 
 def register_error_handlers(app):

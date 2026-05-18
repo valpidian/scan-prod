@@ -91,35 +91,96 @@
         </select>
       </div>
       <div class="col-md-4">
-        <div class="d-flex gap-2">
-          <button type="button" class="btn btn-soft btn-pill" id="btn-sku-preview" onclick="skuStripPreview()">
-            <i class="fas fa-eye me-1"></i>Preview
-          </button>
-          <button type="button" class="btn btn-warning btn-pill d-none" id="btn-sku-apply" onclick="skuStripApply()">
-            <i class="fas fa-check me-1"></i>Aplica
-          </button>
-        </div>
+        <button type="button" class="btn btn-soft btn-pill" id="btn-sku-preview" onclick="skuStripPreview()">
+          <i class="fas fa-search me-1"></i>Analizeaza
+        </button>
       </div>
     </div>
 
-    <div id="sku-preview-result" class="mt-3 d-none">
-      <div id="sku-preview-count" class="mb-2 small fw-semibold"></div>
-      <div class="table-responsive" id="sku-preview-table-wrap">
-        <table class="table table-sm table-bordered mb-0" style="font-size:.8rem;">
-          <thead class="table-light">
-            <tr>
-              <th>Competitor</th>
-              <th>SKU inainte</th>
-              <th></th>
-              <th>SKU dupa</th>
-              <th>Titlu</th>
-            </tr>
-          </thead>
-          <tbody id="sku-preview-tbody"></tbody>
-        </table>
+    {# ── Zona rezultate (apare dupa Analizeaza) ── #}
+    <div id="sku-result-section" class="mt-3 d-none">
+
+      {# Count + 2 optiuni #}
+      <div class="d-flex align-items-center gap-3 flex-wrap mb-3">
+        <div id="sku-preview-count" class="small fw-semibold"></div>
+        <div id="sku-action-btns" class="d-flex gap-2 d-none">
+          <button type="button" class="btn btn-soft btn-pill btn-sm" id="btn-show-table" onclick="skuToggleTable()">
+            <i class="fas fa-list me-1"></i>Afiseaza in tabel
+          </button>
+          <button type="button" class="btn btn-warning btn-pill btn-sm" id="btn-sku-apply" onclick="skuStripApply()">
+            <i class="fas fa-check-double me-1"></i>Aplica tuturor
+          </button>
+        </div>
       </div>
-      <div id="sku-preview-more" class="text-muted small mt-1 d-none"></div>
-    </div>
+
+      {# Banner progres (deasupra tabelului) #}
+      <div id="sku-progress-banner" class="d-none rounded mb-3 p-2 px-3 d-flex align-items-center gap-2"
+           style="border:1px solid rgba(47,128,237,0.3); background:rgba(47,128,237,0.05);">
+        <div id="sku-progress-spinner" class="spinner-border spinner-border-sm text-primary flex-shrink-0"></div>
+        <i id="sku-progress-icon" class="fas fa-check-circle text-success flex-shrink-0 d-none"></i>
+        <span id="sku-progress-text" class="small fw-semibold"></span>
+      </div>
+
+      {# Bulk bar — identic ca la /products/ #}
+      <div id="sku-bulk-bar" class="d-none card mb-3"
+           style="border:2px solid rgba(47,128,237,0.3); background:rgba(47,128,237,0.05);">
+        <div class="card-body py-2 d-flex align-items-center gap-3 flex-wrap">
+          <span id="sku-bulk-count" class="fw-bold text-primary"></span>
+          <button class="btn btn-primary btn-pill btn-sm" onclick="skuBulkClean()">
+            <i class="fas fa-broom me-1"></i>Curata selectia
+          </button>
+          <button class="btn btn-danger btn-pill btn-sm" onclick="skuBulkDelete()">
+            <i class="fas fa-trash me-1"></i>Sterge selectia
+          </button>
+          <button class="btn btn-soft btn-pill btn-sm" onclick="skuDeselectAll()">
+            <i class="fas fa-times me-1"></i>Deselecteaza tot
+          </button>
+        </div>
+      </div>
+
+      {# Tabel produse — acelasi sistem ca /products/ #}
+      <div id="sku-table-wrap" class="d-none">
+        <div class="card">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-3">
+              <input type="checkbox" class="form-check-input" id="sku-check-all" title="Selecteaza pagina curenta">
+              <span>Lista produse cu prefix in SKU</span>
+              <span class="badge bg-secondary" id="sku-table-count-badge"></span>
+              <span class="text-muted small" id="sku-page-label"></span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <small class="text-muted">Randuri/pag.:</small>
+              <select id="sku-per-page" class="form-select form-select-sm" style="width:75px;" onchange="skuChangePerPage(this.value)">
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0" id="sku-products-table">
+              <thead>
+                <tr>
+                  <th style="width:36px;"></th>
+                  <th>ID</th>
+                  <th>Competitor</th>
+                  <th>SKU inainte</th>
+                  <th style="width:28px;"></th>
+                  <th>SKU dupa</th>
+                  <th>Titlu</th>
+                  <th style="width:80px;">Actiuni</th>
+                </tr>
+              </thead>
+              <tbody id="sku-products-tbody"></tbody>
+            </table>
+          </div>
+          <div id="sku-pagination-bar" class="d-none border-top px-3 py-2 d-flex justify-content-center">
+            <ul class="pagination pagination-sm mb-0" id="sku-pagination-pages"></ul>
+          </div>
+        </div>
+      </div>
+
+    </div>{# /sku-result-section #}
   </div>
 </div>
 
@@ -213,6 +274,7 @@
 .edit-panel { padding:1rem 1.2rem; background:linear-gradient(135deg,rgba(47,128,237,0.04),rgba(110,231,200,0.04)); border-top:2px solid rgba(47,128,237,0.18); border-bottom:2px solid rgba(47,128,237,0.18); }
 .diff-before { background:#fff0f0; color:#dc2626; padding:2px 6px; border-radius:4px; font-size:0.8rem; word-break:break-all; }
 .diff-after  { background:#f0fff4; color:#16a34a; padding:2px 6px; border-radius:4px; font-size:0.8rem; word-break:break-all; }
+
 </style>
 
 <script>
@@ -319,92 +381,363 @@ function escapeHtml(t) {
 
 // ── CURATARE PREFIX SKU ────────────────────────────────────────────────────
 let skuStripCount = 0;
+let skuStripItems = [];
+let skuCurrentPrefix = '';
+let skuCurrentCompetitor = '';
+const skuSelectedIds = new Set();
+let skuPage    = 1;
+let skuPerPage = 50;
 
+// ── Selectie ──────────────────────────────────────────────────────────────
+function skuUpdateBulkBar() {
+  const bar      = document.getElementById('sku-bulk-bar');
+  const cnt      = document.getElementById('sku-bulk-count');
+  const checkAll = document.getElementById('sku-check-all');
+  if (skuSelectedIds.size > 0) {
+    bar.classList.remove('d-none');
+    cnt.textContent = `${skuSelectedIds.size} produse selectate`;
+  } else {
+    bar.classList.add('d-none');
+  }
+  // check-all reflecta doar pagina curenta
+  if (checkAll) {
+    const pageCbs      = document.querySelectorAll('.sku-row-check');
+    const pageSelected = [...pageCbs].filter(cb => skuSelectedIds.has(parseInt(cb.value))).length;
+    checkAll.indeterminate = pageSelected > 0 && pageSelected < pageCbs.length;
+    checkAll.checked       = pageCbs.length > 0 && pageSelected === pageCbs.length;
+  }
+}
+
+function skuSetRowSelected(id, checked) {
+  const row = document.getElementById(`sku-row-${id}`);
+  const cb  = row?.querySelector('.sku-row-check');
+  if (checked) { skuSelectedIds.add(id); row?.classList.add('selected-row'); }
+  else         { skuSelectedIds.delete(id); row?.classList.remove('selected-row'); }
+  if (cb) cb.checked = checked;
+  skuUpdateBulkBar();
+}
+
+function skuDeselectAll() {
+  [...skuSelectedIds].forEach(id => skuSetRowSelected(id, false));
+  const ca = document.getElementById('sku-check-all');
+  if (ca) { ca.checked = false; ca.indeterminate = false; }
+  skuUpdateBulkBar();
+}
+
+// Event delegation pentru checkboxes din tabelul SKU
+document.addEventListener('change', function(e) {
+  if (e.target.classList.contains('sku-row-check')) {
+    skuSetRowSelected(parseInt(e.target.value), e.target.checked);
+  } else if (e.target.id === 'sku-check-all') {
+    document.querySelectorAll('.sku-row-check').forEach(cb =>
+      skuSetRowSelected(parseInt(cb.value), e.target.checked)
+    );
+  }
+});
+
+// ── Banner progres ────────────────────────────────────────────────────────
+function skuShowProgress(text, done = false) {
+  const banner  = document.getElementById('sku-progress-banner');
+  const spinner = document.getElementById('sku-progress-spinner');
+  const icon    = document.getElementById('sku-progress-icon');
+  const textEl  = document.getElementById('sku-progress-text');
+  banner.classList.remove('d-none');
+  if (done) {
+    banner.style.borderColor  = 'rgba(22,163,74,0.3)';
+    banner.style.background   = 'rgba(22,163,74,0.05)';
+    spinner.classList.add('d-none');
+    icon.classList.remove('d-none');
+    textEl.className = 'small fw-semibold text-success';
+  } else {
+    banner.style.borderColor  = 'rgba(47,128,237,0.3)';
+    banner.style.background   = 'rgba(47,128,237,0.05)';
+    spinner.classList.remove('d-none');
+    icon.classList.add('d-none');
+    textEl.className = 'small fw-semibold text-primary';
+  }
+  textEl.textContent = text;
+}
+
+function skuHideProgress() {
+  document.getElementById('sku-progress-banner').classList.add('d-none');
+}
+
+// ── Analizeaza ────────────────────────────────────────────────────────────
 async function skuStripPreview() {
-  const prefix = document.getElementById('sku-prefix-input').value.trim();
+  const prefix     = document.getElementById('sku-prefix-input').value.trim();
   const competitor = document.getElementById('sku-competitor-filter').value;
   if (!prefix) { alert('Introdu un prefix de sters.'); return; }
+
+  skuCurrentPrefix     = prefix;
+  skuCurrentCompetitor = competitor;
 
   const btn = document.getElementById('btn-sku-preview');
   const origHtml = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Se analizeaza...';
 
-  const resp = await fetch('/cleanup/sku-strip/preview', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prefix, competitor }),
-  });
-  const data = await resp.json();
-  btn.disabled = false;
-  btn.innerHTML = origHtml;
+  try {
+    const resp = await fetch('/cleanup/sku-strip/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefix, competitor }),
+    });
+    const data = await resp.json();
+    if (data.error) { alert(data.error); return; }
 
-  const resultDiv = document.getElementById('sku-preview-result');
-  const countEl   = document.getElementById('sku-preview-count');
-  const tbody     = document.getElementById('sku-preview-tbody');
-  const moreEl    = document.getElementById('sku-preview-more');
-  const applyBtn  = document.getElementById('btn-sku-apply');
+    skuStripCount = data.count;
+    skuStripItems = data.items || [];
+    skuSelectedIds.clear();
+    skuPage = 1;
 
-  if (data.error) { alert(data.error); return; }
+    const resultSection = document.getElementById('sku-result-section');
+    const countEl       = document.getElementById('sku-preview-count');
+    const actionBtns    = document.getElementById('sku-action-btns');
+    const tableWrap     = document.getElementById('sku-table-wrap');
 
-  skuStripCount = data.count;
-  resultDiv.classList.remove('d-none');
+    resultSection.classList.remove('d-none');
+    tableWrap.classList.add('d-none');
+    document.getElementById('btn-show-table').innerHTML = '<i class="fas fa-list me-1"></i>Afiseaza in tabel';
+    skuUpdateBulkBar();
+    skuHideProgress();
 
-  if (!data.count) {
-    countEl.innerHTML = '<span class="text-muted"><i class="fas fa-info-circle me-1"></i>Niciun SKU nu contine prefixul <strong>"' + escapeHtml(prefix) + '"</strong>.</span>';
-    tbody.innerHTML = '';
-    moreEl.classList.add('d-none');
-    applyBtn.classList.add('d-none');
-    return;
+    if (!data.count) {
+      countEl.innerHTML = `<span class="text-muted"><i class="fas fa-info-circle me-1"></i>Niciun SKU nu contine prefixul <strong>"${escapeHtml(prefix)}"</strong>.</span>`;
+      actionBtns.classList.add('d-none');
+    } else {
+      countEl.innerHTML = `<i class="fas fa-exclamation-triangle text-warning me-1"></i><strong>${data.count}</strong> SKU-uri contin prefixul <strong>"${escapeHtml(prefix)}"</strong>.`;
+      actionBtns.classList.remove('d-none');
+      document.getElementById('sku-table-count-badge').textContent = data.count;
+    }
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = origHtml;
   }
-
-  countEl.innerHTML = `<i class="fas fa-exclamation-triangle text-warning me-1"></i><strong>${data.count}</strong> SKU-uri contin prefixul <strong>"${escapeHtml(prefix)}"</strong> si vor fi modificate.`;
-  tbody.innerHTML = data.samples.map(s => `
-    <tr>
-      <td><span class="badge bg-secondary">${escapeHtml(s.cod_competitor)}</span></td>
-      <td><code class="text-danger">${escapeHtml(s.sku_before)}</code></td>
-      <td class="text-center text-muted">→</td>
-      <td><code class="text-success">${escapeHtml(s.sku_after)}</code></td>
-      <td class="text-muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(s.title)}">${escapeHtml(s.title)}</td>
-    </tr>`).join('');
-
-  if (data.count > 20) {
-    moreEl.textContent = `... si inca ${data.count - 20} SKU-uri (afisat primele 20)`;
-    moreEl.classList.remove('d-none');
-  } else {
-    moreEl.classList.add('d-none');
-  }
-  applyBtn.classList.remove('d-none');
 }
 
+// ── Toggle tabel ──────────────────────────────────────────────────────────
+function skuToggleTable() {
+  const tableWrap = document.getElementById('sku-table-wrap');
+  const btn       = document.getElementById('btn-show-table');
+  if (!tableWrap.classList.contains('d-none')) {
+    tableWrap.classList.add('d-none');
+    btn.innerHTML = '<i class="fas fa-list me-1"></i>Afiseaza in tabel';
+    return;
+  }
+  skuPage = 1;
+  skuRenderTable();
+  tableWrap.classList.remove('d-none');
+  btn.innerHTML = '<i class="fas fa-list me-1"></i>Ascunde tabel';
+}
+
+function skuRenderTable() {
+  const total      = skuStripItems.length;
+  const totalPages = Math.ceil(total / skuPerPage);
+  if (skuPage > totalPages && totalPages > 0) skuPage = totalPages;
+  const start      = (skuPage - 1) * skuPerPage;
+  const pageItems  = skuStripItems.slice(start, start + skuPerPage);
+
+  // Header info
+  document.getElementById('sku-table-count-badge').textContent = total;
+  document.getElementById('sku-page-label').textContent =
+    totalPages > 1 ? `pagina ${skuPage}/${totalPages}` : '';
+
+  // Render rows
+  const tbody = document.getElementById('sku-products-tbody');
+  tbody.innerHTML = pageItems.map(s => `
+    <tr id="sku-row-${s.id}" data-id="${s.id}" ${skuSelectedIds.has(s.id) ? 'class="selected-row"' : ''}>
+      <td><input type="checkbox" class="form-check-input sku-row-check" value="${s.id}" ${skuSelectedIds.has(s.id) ? 'checked' : ''}></td>
+      <td><small class="text-muted">#${s.id}</small></td>
+      <td><span class="association-pill">${escapeHtml(s.cod_competitor)}</span></td>
+      <td><code class="small text-danger">${escapeHtml(s.sku_before)}</code></td>
+      <td class="text-center text-muted px-0">→</td>
+      <td><code class="small text-success">${escapeHtml(s.sku_after)}</code></td>
+      <td><small class="text-muted" title="${escapeHtml(s.title)}">${escapeHtml(s.title.substring(0,60))}${s.title.length>60?'…':''}</small></td>
+      <td>
+        <button class="action-btn action-btn-ai" title="Curata prefix din SKU" onclick="skuCleanOne(${s.id})">
+          <i class="fas fa-broom"></i>
+        </button>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="8" class="text-center text-muted py-3">Niciun produs.</td></tr>';
+
+  skuUpdateBulkBar();
+  skuRenderPagination(totalPages);
+}
+
+function skuRenderPagination(totalPages) {
+  const bar   = document.getElementById('sku-pagination-bar');
+  const pages = document.getElementById('sku-pagination-pages');
+  if (totalPages <= 1) { bar.classList.add('d-none'); return; }
+  bar.classList.remove('d-none');
+
+  const visible = new Set([1, totalPages]);
+  for (let p = Math.max(1, skuPage - 2); p <= Math.min(totalPages, skuPage + 2); p++) visible.add(p);
+  const sorted = [...visible].sort((a, b) => a - b);
+
+  let html = `<li class="page-item ${skuPage === 1 ? 'disabled' : ''}">
+    <a class="page-link" href="#" onclick="skuGoPage(${skuPage - 1});return false;">&laquo;</a></li>`;
+  let prev = 0;
+  for (const p of sorted) {
+    if (prev && p > prev + 1) html += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
+    html += `<li class="page-item ${p === skuPage ? 'active' : ''}">
+      <a class="page-link" href="#" onclick="skuGoPage(${p});return false;">${p}</a></li>`;
+    prev = p;
+  }
+  html += `<li class="page-item ${skuPage === totalPages ? 'disabled' : ''}">
+    <a class="page-link" href="#" onclick="skuGoPage(${skuPage + 1});return false;">&raquo;</a></li>`;
+  pages.innerHTML = html;
+}
+
+function skuGoPage(page) {
+  const totalPages = Math.ceil(skuStripItems.length / skuPerPage);
+  if (page < 1 || page > totalPages) return;
+  skuPage = page;
+  skuRenderTable();
+  document.getElementById('sku-table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function skuChangePerPage(val) {
+  skuPerPage = parseInt(val);
+  skuPage    = 1;
+  skuRenderTable();
+}
+
+// ── Curata un produs individual ───────────────────────────────────────────
+async function skuCleanOne(id) {
+  const prefix = skuCurrentPrefix;
+  if (!prefix) return;
+  skuShowProgress(`Se curata SKU-ul produsului #${id}...`);
+  try {
+    const resp = await fetch(`/cleanup/sku-strip/apply-one/${id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefix }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      const row  = document.getElementById(`sku-row-${id}`);
+      const item = skuStripItems.find(i => i.id === id);
+      if (row && data.changed) {
+        row.cells[3].innerHTML = `<code class="small text-muted">${escapeHtml(data.sku)}</code>`;
+        row.cells[5].innerHTML = `<code class="small text-success">${escapeHtml(data.sku)}</code>`;
+        row.cells[7].innerHTML = `<span class="text-success small"><i class="fas fa-check-circle"></i></span>`;
+        row.style.opacity = '0.55';
+      }
+      skuStripItems = skuStripItems.filter(i => i.id !== id);
+      skuStripCount = Math.max(0, skuStripCount - 1);
+      document.getElementById('sku-table-count-badge').textContent = skuStripItems.length;
+      skuShowProgress(`Produs #${id} curatat cu succes.`, true);
+      setTimeout(skuHideProgress, 2500);
+    }
+  } catch(err) {
+    skuShowProgress(`Eroare: ${err.message}`, true);
+  }
+}
+
+// ── Curata selectia (sterge prefix din SKU-urile selectate) ───────────────
+async function skuBulkClean() {
+  if (!skuSelectedIds.size) return;
+  const ids    = [...skuSelectedIds];
+  const prefix = skuCurrentPrefix;
+  if (!confirm(`Curati prefixul "${prefix}" din ${ids.length} SKU-uri selectate?`)) return;
+
+  skuShowProgress(`Se curata ${ids.length} SKU-uri...`);
+  try {
+    const resp = await fetch('/cleanup/sku-strip/apply-selection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefix, ids }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      ids.forEach(id => {
+        const row  = document.getElementById(`sku-row-${id}`);
+        const item = skuStripItems.find(i => i.id === id);
+        if (row && item) {
+          row.cells[3].innerHTML = `<code class="small text-muted">${escapeHtml(item.sku_after)}</code>`;
+          row.cells[7].innerHTML = `<span class="text-success small"><i class="fas fa-check-circle"></i></span>`;
+          row.style.opacity = '0.55';
+        }
+      });
+      skuStripItems = skuStripItems.filter(i => !ids.includes(i.id));
+      skuStripCount = Math.max(0, skuStripCount - data.updated);
+      document.getElementById('sku-table-count-badge').textContent = skuStripItems.length;
+      skuDeselectAll();
+      skuShowProgress(`${data.updated} SKU-uri curatate cu succes.`, true);
+      setTimeout(skuHideProgress, 3000);
+    }
+  } catch(err) {
+    skuShowProgress(`Eroare: ${err.message}`, true);
+  }
+}
+
+// ── Sterge selectia din DB ────────────────────────────────────────────────
+async function skuBulkDelete() {
+  if (!skuSelectedIds.size) return;
+  if (!confirm(`Stergi definitiv ${skuSelectedIds.size} produse selectate din baza de date? Actiunea este ireversibila.`)) return;
+
+  const ids = [...skuSelectedIds];
+  skuShowProgress(`Se sterg ${ids.length} produse...`);
+  try {
+    const resp = await fetch('/products/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      ids.forEach(id => document.getElementById(`sku-row-${id}`)?.remove());
+      skuStripItems = skuStripItems.filter(i => !ids.includes(i.id));
+      skuStripCount = Math.max(0, skuStripCount - data.deleted);
+      document.getElementById('sku-table-count-badge').textContent = skuStripItems.length;
+      document.getElementById('sku-preview-count').innerHTML =
+        `<i class="fas fa-exclamation-triangle text-warning me-1"></i>Au ramas <strong>${skuStripCount}</strong> SKU-uri cu prefixul <strong>"${escapeHtml(skuCurrentPrefix)}"</strong>.`;
+      skuDeselectAll();
+      skuShowProgress(`${data.deleted} produse sterse cu succes.`, true);
+      setTimeout(skuHideProgress, 3000);
+    }
+  } catch(err) {
+    skuShowProgress(`Eroare la stergere: ${err.message}`, true);
+  }
+}
+
+// ── Aplica la toate ───────────────────────────────────────────────────────
 async function skuStripApply() {
-  const prefix = document.getElementById('sku-prefix-input').value.trim();
-  const competitor = document.getElementById('sku-competitor-filter').value;
+  const prefix     = skuCurrentPrefix;
+  const competitor = skuCurrentCompetitor;
   if (!prefix) return;
   if (!confirm(`Stergi prefixul "${prefix}" din ${skuStripCount} SKU-uri? Actiunea nu poate fi anulata.`)) return;
 
   const btn = document.getElementById('btn-sku-apply');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Se aplica...';
+  skuShowProgress(`Se aplica stergerea prefixului la ${skuStripCount} SKU-uri...`);
 
-  const resp = await fetch('/cleanup/sku-strip/apply', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prefix, competitor }),
-  });
-  const data = await resp.json();
-  btn.disabled = false;
-  btn.innerHTML = '<i class="fas fa-check me-1"></i>Aplica';
-
-  if (data.ok) {
-    const countEl = document.getElementById('sku-preview-count');
-    countEl.innerHTML = `<i class="fas fa-check-circle text-success me-1"></i><strong>${data.updated}</strong> SKU-uri actualizate cu succes.`;
-    document.getElementById('sku-preview-tbody').innerHTML = '';
-    document.getElementById('sku-preview-more').classList.add('d-none');
-    btn.classList.add('d-none');
-    skuStripCount = 0;
-  } else {
-    alert('Eroare la aplicare.');
+  try {
+    const resp = await fetch('/cleanup/sku-strip/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefix, competitor }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      document.getElementById('sku-preview-count').innerHTML =
+        `<i class="fas fa-check-circle text-success me-1"></i><strong>${data.updated}</strong> SKU-uri actualizate cu succes.`;
+      document.getElementById('sku-action-btns').classList.add('d-none');
+      document.getElementById('sku-table-wrap').classList.add('d-none');
+      skuStripCount = 0;
+      skuStripItems = [];
+      skuDeselectAll();
+      skuShowProgress(`${data.updated} SKU-uri actualizate cu succes.`, true);
+      setTimeout(skuHideProgress, 3000);
+    } else {
+      alert('Eroare la aplicare.');
+      skuHideProgress();
+    }
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check-double me-1"></i>Aplica tuturor';
   }
 }
 </script>

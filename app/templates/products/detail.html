@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+{% block title %}Produs #{{ product.id }} | Scan Pret{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <span class="eyebrow">Produs</span>
+    <h4 class="mb-0">
+      <span class="association-pill me-2">{{ product.cod_competitor }}</span>
+      {{ product.title[:80] }}{% if product.title|length > 80 %}…{% endif %}
+    </h4>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('ai_association.associate', product_id=product.id) }}"
+       class="btn btn-soft btn-pill btn-sm">
+      <i class="fas fa-robot me-1"></i>Asociere AI
+    </a>
+    <a href="{{ url_for('products.list_view') }}" class="btn btn-soft btn-pill btn-sm">
+      <i class="fas fa-arrow-left me-1"></i>Inapoi la produse
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  {# ── Coloana stanga ── #}
+  <div class="col-lg-6">
+
+    {# Date produs #}
+    <div class="card mb-4">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-box-open me-2 text-primary"></i><strong>Date produs</strong></span>
+        <div class="d-flex gap-2">
+          <small class="text-muted align-self-center">#{{ product.id }}</small>
+          <button class="btn btn-soft btn-pill btn-sm" id="btn-toggle-edit">
+            <i class="fas fa-pen me-1"></i>Editeaza
+          </button>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        {# View mode #}
+        <div id="view-mode">
+          <table class="table table-sm mb-0">
+            <tbody>
+              <tr>
+                <td class="text-muted ps-3" style="width:120px;">SKU</td>
+                <td><code class="bg-light px-2 py-1 rounded" id="v-sku">{{ product.sku }}</code></td>
+              </tr>
+              <tr>
+                <td class="text-muted ps-3">Titlu</td>
+                <td><strong id="v-title">{{ product.title }}</strong></td>
+              </tr>
+              <tr>
+                <td class="text-muted ps-3">Brand</td>
+                <td id="v-brand">{{ product.brand or '—' }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted ps-3">Pret</td>
+                <td>
+                  {% if product.pret %}
+                    <strong id="v-pret">{{ "%.2f"|format(product.pret) }}</strong> lei
+                  {% else %}
+                    <span id="v-pret" class="text-muted">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% if product.pret_preluat %}
+              <tr>
+                <td class="text-muted ps-3">Pret preluat</td>
+                <td>
+                  <span class="badge bg-info">{{ "%.2f"|format(product.pret_preluat) }} lei</span>
+                  {% if product.pret_preluat_sursa %}
+                    <small class="text-muted ms-1">din {{ competitor_lookup.get(product.pret_preluat_sursa, product.pret_preluat_sursa) }}</small>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endif %}
+              <tr>
+                <td class="text-muted ps-3">Competitor</td>
+                <td>
+                  <span class="association-pill">{{ product.cod_competitor }}</span>
+                  {% if competitor_lookup.get(product.cod_competitor) %}
+                    <small class="text-muted ms-1">{{ competitor_lookup.get(product.cod_competitor) }}</small>
+                  {% endif %}
+                </td>
+              </tr>
+              {% if product.url %}
+              <tr>
+                <td class="text-muted ps-3">URL</td>
+                <td>
+                  <a href="{{ product.url }}" target="_blank" rel="noopener noreferrer"
+                     class="btn btn-xs btn-soft btn-pill">
+                    <i class="fas fa-external-link-alt me-1"></i>Deschide
+                  </a>
+                </td>
+              </tr>
+              {% endif %}
+              {% if product.descriere %}
+              <tr>
+                <td class="text-muted ps-3">Descriere</td>
+                <td><small class="text-muted">{{ product.descriere[:300] }}{% if product.descriere|length > 300 %}…{% endif %}</small></td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+
+        {# Edit mode #}
+        <div id="edit-mode" class="d-none p-3">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="edit-label">SKU</label>
+              <input type="text" class="form-control form-control-sm" id="e-sku" value="{{ product.sku }}">
+            </div>
+            <div class="col-md-6">
+              <label class="edit-label">Brand</label>
+              <input type="text" class="form-control form-control-sm" id="e-brand" value="{{ product.brand or '' }}">
+            </div>
+            <div class="col-12">
+              <label class="edit-label">Titlu</label>
+              <input type="text" class="form-control form-control-sm" id="e-title" value="{{ product.title }}">
+            </div>
+            <div class="col-md-4">
+              <label class="edit-label">Pret</label>
+              <input type="number" step="0.01" class="form-control form-control-sm" id="e-pret" value="{{ product.pret or '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="edit-label">Alerta pret <span class="text-muted fw-normal">(≤)</span></label>
+              <input type="number" step="0.01" class="form-control form-control-sm" id="e-pret-alerta" value="{{ product.pret_alerta or '' }}">
+            </div>
+            <div class="col-12">
+              <label class="edit-label">URL</label>
+              <input type="url" class="form-control form-control-sm" id="e-url" value="{{ product.url or '' }}" placeholder="https://...">
+            </div>
+            <div class="col-12">
+              <label class="edit-label">Descriere</label>
+              <input type="text" class="form-control form-control-sm" id="e-descriere" value="{{ product.descriere or '' }}">
+            </div>
+          </div>
+          <div class="d-flex gap-2 mt-3 align-items-center">
+            <button class="btn btn-primary btn-pill btn-sm" onclick="saveProduct()">
+              <i class="fas fa-save me-1"></i>Salveaza
+            </button>
+            <button class="btn btn-soft btn-pill btn-sm" onclick="toggleEdit(false)">Anuleaza</button>
+            <span id="save-status" class="small ms-2"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Asocieri #}
+    <div class="card mb-4">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-link me-2 text-success"></i><strong>Produse asociate</strong></span>
+        <span class="badge bg-secondary">{{ associated|length }}</span>
+      </div>
+      {% if associated %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th>
+              <th>Competitor</th>
+              <th>SKU</th>
+              <th>Titlu</th>
+              <th class="text-end">Pret</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in associated %}
+            <tr>
+              <td>
+                <a href="{{ url_for('products.detail', product_id=p.id) }}"
+                   class="text-decoration-none"><code class="small">#{{ p.id }}</code></a>
+              </td>
+              <td>
+                <span class="association-pill">{{ p.cod_competitor }}</span>
+                {% if assoc_comp_map.get(p.cod_competitor) %}
+                  <small class="d-block text-muted">{{ assoc_comp_map.get(p.cod_competitor) }}</small>
+                {% endif %}
+              </td>
+              <td><code class="small">{{ p.sku }}</code></td>
+              <td><small>{{ p.title[:50] }}{% if p.title|length > 50 %}…{% endif %}</small></td>
+              <td class="text-end">
+                {% if p.pret %}
+                  <strong>{{ "%.2f"|format(p.pret) }}</strong> <small class="text-muted">lei</small>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if p.url %}
+                <a href="{{ p.url }}" target="_blank" rel="noopener noreferrer"
+                   class="action-btn" title="Deschide URL">
+                  <i class="fas fa-external-link-alt"></i>
+                </a>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="card-body text-center text-muted py-4">
+        <i class="fas fa-unlink fa-2x mb-2 d-block"></i>
+        Niciun produs asociat.
+        <div class="mt-2">
+          <a href="{{ url_for('ai_association.associate', product_id=product.id) }}"
+             class="btn btn-soft btn-pill btn-sm">
+            <i class="fas fa-robot me-1"></i>Asocieaza cu AI
+          </a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  {# ── Coloana dreapta ── #}
+  <div class="col-lg-6">
+
+    {# Istoric preturi #}
+    <div class="card mb-4">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-chart-line me-2 text-warning"></i><strong>Istoric preturi</strong></span>
+        {% if product.url %}
+        <button class="btn btn-soft btn-pill btn-sm" id="btn-scrape" title="Actualizeaza pretul">
+          <i class="fas fa-sync-alt me-1"></i>Actualizeaza
+        </button>
+        {% endif %}
+      </div>
+      <div class="card-body" id="price-history-body">
+        <div class="text-center text-muted py-3">
+          <div class="spinner-border spinner-border-sm me-1"></div> Se incarca...
+        </div>
+      </div>
+    </div>
+
+    {# Istoric AI #}
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-history me-2" style="color:#6f42c1;"></i><strong>Istoricul procesarilor AI</strong></span>
+        <a href="{{ url_for('ai_association.associate', product_id=product.id) }}"
+           class="btn btn-soft btn-pill btn-sm">
+          <i class="fas fa-robot me-1"></i>Ruleaza AI
+        </a>
+      </div>
+      <div id="ai-history-body">
+        <div class="text-center text-muted py-3">
+          <div class="spinner-border spinner-border-sm me-1"></div> Se incarca...
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+.edit-label { display:block; font-size:.72rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; }
+</style>
+
+<script>
+const PRODUCT_ID = {{ product.id }};
+
+// ── Toggle edit ────────────────────────────────────────────────────────────
+function toggleEdit(open) {
+  document.getElementById('view-mode').classList.toggle('d-none', open);
+  document.getElementById('edit-mode').classList.toggle('d-none', !open);
+  document.getElementById('btn-toggle-edit').innerHTML = open
+    ? '<i class="fas fa-times me-1"></i>Anuleaza'
+    : '<i class="fas fa-pen me-1"></i>Editeaza';
+}
+document.getElementById('btn-toggle-edit').addEventListener('click', function() {
+  const isEdit = !document.getElementById('edit-mode').classList.contains('d-none');
+  toggleEdit(!isEdit);
+});
+
+async function saveProduct() {
+  const status = document.getElementById('save-status');
+  const payload = {
+    sku:         document.getElementById('e-sku').value,
+    title:       document.getElementById('e-title').value,
+    brand:       document.getElementById('e-brand').value,
+    pret:        document.getElementById('e-pret').value,
+    pret_alerta: document.getElementById('e-pret-alerta').value,
+    url:         document.getElementById('e-url').value,
+    descriere:   document.getElementById('e-descriere').value,
+  };
+  status.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const resp = await fetch(`/products/${PRODUCT_ID}/edit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      document.getElementById('v-sku').textContent   = payload.sku;
+      document.getElementById('v-title').textContent = payload.title;
+      document.getElementById('v-brand').textContent = payload.brand || '—';
+      document.getElementById('v-pret').textContent  = payload.pret ? parseFloat(payload.pret).toFixed(2) : '—';
+      status.innerHTML = '<span class="text-success"><i class="fas fa-check-circle"></i> Salvat</span>';
+      setTimeout(() => toggleEdit(false), 800);
+    }
+  } catch(err) {
+    status.innerHTML = `<span class="text-danger">Eroare retea</span>`;
+  }
+}
+
+// ── Istoric preturi ────────────────────────────────────────────────────────
+(async function loadPriceHistory() {
+  const body = document.getElementById('price-history-body');
+  try {
+    const resp    = await fetch(`/products/${PRODUCT_ID}/price-history`);
+    const history = await resp.json();
+    if (!history.length) {
+      body.innerHTML = '<p class="text-muted mb-0 text-center py-2">Niciun istoric de pret inregistrat.</p>';
+      return;
+    }
+    const colors = { import: '#0d6efd', scraper: '#fd7e14', manual: '#198754' };
+    body.innerHTML = '<div style="max-height:260px;"><canvas id="chart-price"></canvas></div>';
+    new Chart(document.getElementById('chart-price').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: history.map(h => h.recorded_at),
+        datasets: [{
+          label: 'Pret (lei)',
+          data: history.map(h => h.pret),
+          borderColor: '#0d6efd',
+          backgroundColor: 'rgba(13,110,253,0.08)',
+          tension: 0.3, fill: true, pointRadius: 5,
+          pointBackgroundColor: history.map(h => colors[h.sursa] || '#6c757d'),
+          pointBorderColor: '#fff', pointBorderWidth: 2,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => `${ctx.parsed.y.toFixed(2)} lei (${history[ctx.dataIndex].sursa})` } },
+        },
+        scales: {
+          y: { beginAtZero: false, ticks: { callback: v => v + ' lei' } },
+          x: { ticks: { maxRotation: 30, font: { size: 10 } } },
+        },
+      },
+    });
+  } catch(err) {
+    body.innerHTML = `<p class="text-danger small mb-0">Eroare: ${err.message}</p>`;
+  }
+})();
+
+// ── Istoric AI ────────────────────────────────────────────────────────────
+const AI_STATUS_LABELS = {
+  no_match:  { label: 'Negasit',   cls: 'bg-secondary' },
+  found:     { label: 'Gasit',     cls: 'bg-warning text-dark' },
+  confirmed: { label: 'Confirmat', cls: 'bg-success' },
+  rejected:  { label: 'Respins',   cls: 'bg-danger' },
+};
+
+(async function loadAiHistory() {
+  const body = document.getElementById('ai-history-body');
+  try {
+    const resp = await fetch(`/products/${PRODUCT_ID}/ai-history`);
+    const logs = await resp.json();
+    if (!logs.length) {
+      body.innerHTML = `
+        <div class="text-center text-muted py-4">
+          <i class="fas fa-robot fa-2x mb-2 d-block opacity-50"></i>
+          Nicio procesare AI inregistrata inca.
+        </div>`;
+      return;
+    }
+    body.innerHTML = `
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Data</th><th>Competitor tinta</th><th>Status</th>
+              <th class="text-center">Confidence</th><th>Motiv AI</th><th>Produs gasit</th><th>Confirmat la</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${logs.map(log => {
+              const s = AI_STATUS_LABELS[log.status] || { label: log.status, cls: 'bg-secondary' };
+              const conf = log.confidence != null ? `${Math.round(log.confidence * 100)}%` : '—';
+              const matched = log.matched_product_id
+                ? `<a href="/products/${log.matched_product_id}" class="small">#${log.matched_product_id}</a>`
+                : '<span class="text-muted">—</span>';
+              const reason = log.reason || '—';
+              return `<tr>
+                <td><small class="text-muted">${log.processed_at}</small></td>
+                <td><small>${log.competitor_target}</small></td>
+                <td><span class="badge ${s.cls}">${s.label}</span></td>
+                <td class="text-center"><small>${conf}</small></td>
+                <td><small class="text-muted" title="${reason}">${reason.length > 70 ? reason.substring(0,70)+'…' : reason}</small></td>
+                <td>${matched}</td>
+                <td><small class="text-muted">${log.confirmed_at || '—'}</small></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch(err) {
+    body.innerHTML = `<p class="text-danger small p-3 mb-0">Eroare: ${err.message}</p>`;
+  }
+})();
+
+// ── Scrape pret ───────────────────────────────────────────────────────────
+document.getElementById('btn-scrape')?.addEventListener('click', async function() {
+  const btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Se actualizeaza...';
+  try {
+    const resp = await fetch(`/products/${PRODUCT_ID}/scrape`, { method: 'POST' });
+    const data = await resp.json();
+    if (data.ok) {
+      if (data.changed) {
+        document.getElementById('v-pret').textContent = parseFloat(data.pret).toFixed(2);
+        document.getElementById('e-pret').value = data.pret;
+        btn.innerHTML = '<i class="fas fa-check text-success me-1"></i>Actualizat';
+      } else {
+        btn.innerHTML = '<i class="fas fa-check text-muted me-1"></i>Neschimbat';
+      }
+    } else {
+      btn.innerHTML = `<i class="fas fa-exclamation-triangle text-warning me-1"></i>${data.error || 'Eroare'}`;
+    }
+  } catch(err) {
+    btn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Actualizeaza';
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { btn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Actualizeaza'; }, 3000);
+  }
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+{% endblock %}

@@ -1,0 +1,24 @@
+<div id="bulk-bar" class="card mb-3"
+     style="display:none; border:2px solid rgba(47,128,237,0.3); background:rgba(47,128,237,0.05);">
+  <div class="card-body py-2 d-flex align-items-center gap-3 flex-wrap">
+    <span id="bulk-count" class="fw-bold text-primary"></span>
+    <button class="btn btn-primary btn-pill btn-sm" id="btn-ai-batch">
+      <i class="fas fa-robot me-1"></i> Procesare AI in masa
+    </button>
+    <button class="btn btn-pill btn-sm" id="btn-score-match"
+            style="background:rgba(111,66,193,0.12);color:#6f42c1;border:1px solid rgba(111,66,193,0.3);">
+      <i class="fas fa-calculator me-1"></i> Calculeaza potriviri
+    </button>
+    <button class="btn btn-danger btn-pill btn-sm" id="btn-bulk-delete">
+      <i class="fas fa-trash me-1"></i> Sterge selectia
+    </button>
+    <button class="btn btn-soft btn-pill btn-sm" id="btn-deselect-all">
+      <i class="fas fa-times me-1"></i> Deselecteaza tot
+    </button>
+    <div class="ms-auto d-flex gap-2 align-items-center">
+      <small class="text-muted">Selecteaza rapid:</small>
+      <button class="btn btn-soft btn-pill btn-sm" onclick="selectPage()">Pagina curenta</button>
+      <button class="btn btn-soft btn-pill btn-sm" onclick="selectWithoutAsociere()">Fara asociere</button>
+    </div>
+  </div>
+</div>

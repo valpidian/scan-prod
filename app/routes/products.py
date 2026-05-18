@@ -13,6 +13,54 @@ bp = Blueprint("products", __name__)
 ALLOWED_PER_PAGE = [50, 100, 200, 400]
 
 
+def _build_score_map(page_ids):
+    """Returneaza cel mai bun scor pending per produs: {product_id: {"score": float, "count": int}}."""
+    from app.models.product_match_score import ProductMatchScore
+    if not page_ids:
+        return {}
+    rows = (
+        db.session.query(
+            ProductMatchScore.product_id,
+            func.max(ProductMatchScore.score).label("best_score"),
+            func.count(ProductMatchScore.id).label("cnt"),
+        )
+        .filter(
+            ProductMatchScore.product_id.in_(page_ids),
+            ProductMatchScore.status == "pending",
+        )
+        .group_by(ProductMatchScore.product_id)
+        .all()
+    )
+    return {r.product_id: {"score": r.best_score, "count": r.cnt} for r in rows}
+
+
+def _build_asociere_counts(page_ids):
+    from sqlalchemy import or_ as _or
+    counts: dict = {}
+    if not page_ids:
+        return counts
+    rows = (
+        db.session.query(
+            ProductAssociation.product_id,
+            ProductAssociation.associated_id,
+        )
+        .filter(
+            _or(
+                ProductAssociation.product_id.in_(page_ids),
+                ProductAssociation.associated_id.in_(page_ids),
+            )
+        )
+        .all()
+    )
+    ids_set = set(page_ids)
+    for r in rows:
+        if r.product_id in ids_set:
+            counts[r.product_id] = counts.get(r.product_id, 0) + 1
+        if r.associated_id in ids_set:
+            counts[r.associated_id] = counts.get(r.associated_id, 0) + 1
+    return counts
+
+
 @bp.route("/")
 def list_view():
     filters = {
@@ -20,49 +68,95 @@ def list_view():
         "q": request.args.get("q", "").strip(),
         "sort": request.args.get("sort", "title").strip(),
         "direction": request.args.get("direction", "asc").strip(),
+        "ai_status": request.args.get("ai_status", "").strip(),
     }
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", current_app.config.get("PRODUCTS_PER_PAGE", 50), type=int)
-    if per_page not in ALLOWED_PER_PAGE:
-        per_page = 50
-    pagination = build_query(filters).paginate(page=page, per_page=per_page, error_out=False)
+
+    load_all = per_page == 0  # "Toate" — JS va incarca toate paginile automat
+    if per_page == 0 or per_page not in ALLOWED_PER_PAGE:
+        if per_page != 0:
+            per_page = 50  # normalizeaza valoarea invalida
+        effective_per_page = 50  # pagineaza cu 50, JS incarca restul
+    else:
+        effective_per_page = per_page
+
+    pagination = build_query(filters).paginate(page=page, per_page=effective_per_page, error_out=False)
+
     competitors = Competitor.query.order_by(Competitor.internal_code.asc()).all()
     competitor_lookup = {c.internal_code: c.display_name for c in competitors}
 
-    # Numara asocierile pentru produsele de pe pagina curenta (fara N+1)
     page_ids = [p.id for p in pagination.items]
-    asociere_counts: dict = {}
-    if page_ids:
-        from sqlalchemy import or_ as _or
-        rows = (
-            db.session.query(
-                ProductAssociation.product_id,
-                ProductAssociation.associated_id,
-            )
-            .filter(
-                _or(
-                    ProductAssociation.product_id.in_(page_ids),
-                    ProductAssociation.associated_id.in_(page_ids),
-                )
-            )
-            .all()
-        )
-        for r in rows:
-            if r.product_id in page_ids:
-                asociere_counts[r.product_id] = asociere_counts.get(r.product_id, 0) + 1
-            if r.associated_id in page_ids:
-                asociere_counts[r.associated_id] = asociere_counts.get(r.associated_id, 0) + 1
+    asociere_counts = _build_asociere_counts(page_ids)
+    score_map = _build_score_map(page_ids)
+
+    # Raspuns JSON pentru infinite scroll AJAX
+    if request.args.get("format") == "json":
+        return jsonify({
+            "products": [{
+                "id": p.id,
+                "cod_competitor": p.cod_competitor,
+                "sku": p.sku,
+                "title": p.title,
+                "pret": p.pret,
+                "pret_preluat": p.pret_preluat,
+                "pret_preluat_sursa": p.pret_preluat_sursa,
+                "brand": p.brand,
+                "url": p.url,
+                "descriere": p.descriere or "",
+                "pret_alerta": p.pret_alerta,
+                "asociere_count": asociere_counts.get(p.id, 0),
+                "best_score": score_map.get(p.id, {}).get("score"),
+                "score_count": score_map.get(p.id, {}).get("count", 0),
+            } for p in pagination.items],
+            "has_next": pagination.has_next,
+            "next_page": pagination.next_num,
+            "page": pagination.page,
+            "pages": pagination.pages,
+            "total": pagination.total,
+        })
 
     return render_template(
         "products/list.html",
         products=pagination.items,
         pagination=pagination,
         per_page=per_page,
+        load_all=load_all,
         allowed_per_page=ALLOWED_PER_PAGE,
         competitors=competitors,
         competitor_lookup=competitor_lookup,
         filters=filters,
         asociere_counts=asociere_counts,
+        score_map=score_map,
+    )
+
+
+@bp.route("/<int:product_id>")
+def detail(product_id):
+    product = CompetitorProduct.query.get_or_404(product_id)
+    competitors = Competitor.query.order_by(Competitor.internal_code.asc()).all()
+    competitor_lookup = {c.internal_code: c.display_name for c in competitors}
+
+    from app.models.product_association import ProductAssociation
+    assoc_ids = ProductAssociation.get_associated_ids(product_id)
+    associated = []
+    if assoc_ids:
+        associated = CompetitorProduct.query.filter(CompetitorProduct.id.in_(assoc_ids)).all()
+    assoc_comp_map = {}
+    if associated:
+        codes = {p.cod_competitor for p in associated}
+        assoc_comp_map = {
+            c.internal_code: c.display_name
+            for c in Competitor.query.filter(Competitor.internal_code.in_(codes)).all()
+        }
+
+    return render_template(
+        "products/detail.html",
+        product=product,
+        competitors=competitors,
+        competitor_lookup=competitor_lookup,
+        associated=associated,
+        assoc_comp_map=assoc_comp_map,
     )
 
 
@@ -150,6 +244,28 @@ def price_history(product_id):
     } for h in history])
 
 
+@bp.route("/<int:product_id>/ai-history")
+def ai_history(product_id):
+    from app.models.ai_association_log import AIAssociationLog
+    logs = (
+        AIAssociationLog.query
+        .filter_by(product_id=product_id)
+        .order_by(AIAssociationLog.processed_at.desc())
+        .all()
+    )
+    return jsonify([{
+        "id": log.id,
+        "competitor_target": log.competitor_target or "toti",
+        "matched_product_id": log.matched_product_id,
+        "status": log.status,
+        "confidence": log.confidence,
+        "reason": log.reason or "",
+        "prompt_name": log.prompt_name or "",
+        "processed_at": log.processed_at.strftime("%d.%m.%Y %H:%M"),
+        "confirmed_at": log.confirmed_at.strftime("%d.%m.%Y %H:%M") if log.confirmed_at else None,
+    } for log in logs])
+
+
 @bp.route("/<int:product_id>/scrape", methods=["POST"])
 @csrf.exempt
 def scrape_product(product_id):
@@ -211,14 +327,18 @@ def ai_batch():
         return redirect(url_for("products.list_view"))
     products = CompetitorProduct.query.filter(CompetitorProduct.id.in_(ids)).all()
     competitors = Competitor.query.order_by(Competitor.internal_code.asc()).all()
-    # Exclude competitorii din care fac parte produsele selectate
     source_codes = {p.cod_competitor for p in products}
     target_competitors = [c for c in competitors if c.internal_code not in source_codes]
+    from app.models.prompt_template import PromptTemplate
+    prompts = PromptTemplate.query.order_by(
+        PromptTemplate.is_system.desc(), PromptTemplate.name.asc()
+    ).all()
     return render_template(
         "products/ai_batch.html",
         products=products,
         ids=ids,
         target_competitors=target_competitors,
+        prompts=prompts,
     )
 
 
@@ -232,7 +352,8 @@ def ai_batch_run():
     data = request.get_json()
     product_id = data.get("product_id")
     custom_prompt = data.get("prompt")
-    target_competitors = data.get("target_competitors")  # lista de cod_competitor sau None = toti
+    target_competitors = data.get("target_competitors")
+    prompt_id = data.get("prompt_id")
 
     product = CompetitorProduct.query.get(product_id)
     if not product:
@@ -241,6 +362,14 @@ def ai_batch_run():
     config = AIConfig.get_active()
     if not config or not config.api_key:
         return jsonify({"error": "AI neconfigurat", "product_id": product_id}), 400
+
+    prompt_name = None
+    if prompt_id:
+        from app.models.prompt_template import PromptTemplate
+        tmpl = PromptTemplate.query.get(int(prompt_id))
+        if tmpl:
+            prompt_name = tmpl.name
+            custom_prompt = custom_prompt or tmpl.body
 
     try:
         candidates = find_candidates(product, target_competitors=target_competitors or None)
@@ -253,6 +382,18 @@ def ai_batch_run():
     matched = ai_result.get("matched_ids") or (
         [str(ai_result["matched_id"])] if ai_result.get("matched_id") else []
     )
+
+    from app.models.ai_association_log import AIAssociationLog
+    db.session.add(AIAssociationLog(
+        product_id=product_id,
+        competitor_target=",".join(target_competitors) if target_competitors else None,
+        matched_product_id=int(matched[0]) if matched and str(matched[0]).isdigit() else None,
+        status="found" if matched else "no_match",
+        confidence=ai_result.get("confidence"),
+        reason=ai_result.get("reason"),
+        prompt_name=prompt_name,
+    ))
+    db.session.commit()
 
     # Aduce detalii despre produsele gasite
     matched_details = []
@@ -287,6 +428,8 @@ def ai_batch_run():
 def ai_batch_confirm():
     """Salveaza asocierile confirmate din procesarea in masa."""
     from app.models.product_association import ProductAssociation
+    from app.models.ai_association_log import AIAssociationLog
+    from datetime import datetime
     data = request.get_json()
     results = data.get("results", [])
     saved = 0
@@ -299,6 +442,15 @@ def ai_batch_confirm():
             continue
         for mid in ids_to_save:
             ProductAssociation.add(product_id, mid)
+        log = (
+            AIAssociationLog.query
+            .filter_by(product_id=product_id, status="found")
+            .order_by(AIAssociationLog.processed_at.desc())
+            .first()
+        )
+        if log:
+            log.status = "confirmed"
+            log.confirmed_at = datetime.utcnow()
         saved += 1
     db.session.commit()
     return jsonify({"ok": True, "saved": saved})

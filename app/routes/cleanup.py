@@ -115,13 +115,54 @@ def sku_strip_preview():
                 "cod_competitor": p.cod_competitor,
                 "sku_before": p.sku,
                 "sku_after": new_sku,
-                "title": (p.title or "")[:60],
+                "title": (p.title or "")[:80],
             })
 
     return jsonify({
         "count": len(matches),
-        "samples": matches[:20],
+        "items": matches,
     })
+
+
+@bp.route("/sku-strip/apply-one/<int:product_id>", methods=["POST"])
+@csrf.exempt
+def sku_strip_apply_one(product_id):
+    """Aplica stergerea prefix-ului pe un singur produs."""
+    data = request.get_json() or {}
+    prefix = (data.get("prefix") or "").strip()
+    if not prefix:
+        return jsonify({"error": "Prefix lipsa"}), 400
+
+    p = CompetitorProduct.query.get_or_404(product_id)
+    new_sku = _strip_sku_prefix(p.sku, prefix)
+    changed = new_sku != p.sku
+    if changed:
+        p.sku = new_sku
+        db.session.commit()
+    return jsonify({"ok": True, "changed": changed, "sku": new_sku})
+
+
+@bp.route("/sku-strip/apply-selection", methods=["POST"])
+@csrf.exempt
+def sku_strip_apply_selection():
+    """Aplica stergerea prefix-ului pe o selectie de produse (dupa ID)."""
+    data = request.get_json() or {}
+    prefix = (data.get("prefix") or "").strip()
+    ids = [int(x) for x in (data.get("ids") or []) if str(x).isdigit()]
+    if not prefix:
+        return jsonify({"error": "Prefix lipsa"}), 400
+    if not ids:
+        return jsonify({"error": "Niciun ID selectat"}), 400
+
+    products = CompetitorProduct.query.filter(CompetitorProduct.id.in_(ids)).all()
+    updated = 0
+    for p in products:
+        new_sku = _strip_sku_prefix(p.sku, prefix)
+        if new_sku != p.sku:
+            p.sku = new_sku
+            updated += 1
+    db.session.commit()
+    return jsonify({"ok": True, "updated": updated})
 
 
 @bp.route("/sku-strip/apply", methods=["POST"])

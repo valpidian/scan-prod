@@ -6,7 +6,10 @@
 <div class="d-flex align-items-center justify-content-between mb-3">
   <div>
     <span class="eyebrow">AI Workbench</span>
-    <h4 class="mb-0">Asociere produs #{{ source.id }}</h4>
+    <h4 class="mb-0">Asociere produs
+      <a href="{{ url_for('products.detail', product_id=source.id) }}"
+         class="text-decoration-none" title="Vezi pagina produsului">#{{ source.id }}</a>
+    </h4>
   </div>
   <div class="d-flex gap-2">
     <a href="{{ url_for('ai_association.config') }}" class="btn btn-soft btn-pill btn-sm">
@@ -84,14 +87,49 @@
       </div>
     </div>
 
+    <!-- FILTRU COMPETITORI TINTA -->
+    {% if target_competitors %}
+    <div class="card mb-3">
+      <div class="card-header d-flex align-items-center justify-content-between py-2">
+        <span><i class="fas fa-filter me-2 text-primary"></i><strong>Competitori tinta</strong>
+          <span class="text-muted fw-normal small ms-1">— cauta asocierea doar in competitorii selectati</span>
+        </span>
+        <div class="d-flex gap-1">
+          <button class="btn btn-soft btn-pill btn-sm py-0 px-2" onclick="selectAllComps(true)">Toti</button>
+          <button class="btn btn-soft btn-pill btn-sm py-0 px-2" onclick="selectAllComps(false)">Niciunul</button>
+        </div>
+      </div>
+      <div class="card-body py-2">
+        <div class="d-flex flex-wrap gap-2">
+          {% for c in target_competitors %}
+          <div class="form-check form-check-inline mb-0">
+            <input class="form-check-input comp-check" type="checkbox"
+                   id="comp-{{ c.internal_code }}" value="{{ c.internal_code }}"
+                   {% if not selected_competitors or c.internal_code in selected_competitors %}checked{% endif %}>
+            <label class="form-check-label small" for="comp-{{ c.internal_code }}">
+              <span class="association-pill" style="font-size:.68rem;">{{ c.internal_code }}</span>
+              <span class="text-muted ms-1">{{ c.display_name }}</span>
+            </label>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="mt-2">
+          <button class="btn btn-soft btn-pill btn-sm" id="btn-reload-candidates" onclick="reloadCandidates()">
+            <i class="fas fa-sync-alt me-1"></i>Reincarca candidati
+          </button>
+          <span id="reload-status" class="text-muted small ms-2"></span>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- CANDIDATI -->
     <div class="card">
       <div class="card-header d-flex align-items-center justify-content-between">
         <span><i class="fas fa-list me-2 text-success"></i><strong>Candidati gasiti</strong></span>
-        <span class="badge bg-secondary">{{ candidates|length }}</span>
+        <span class="badge bg-secondary" id="candidates-count-badge">{{ candidates|length }}</span>
       </div>
       <div class="card-body p-0">
-        {% if candidates %}
         <div class="table-responsive">
           <table class="table table-sm table-hover mb-0" id="candidates-table">
             <thead class="table-light">
@@ -104,62 +142,48 @@
               </tr>
             </thead>
             <tbody>
-              {% for row in candidates %}
-              {% set c = row.product %}
-              <tr id="candidate-row-{{ c.id }}" data-id="{{ c.id }}">
-                <td>
-                  <code class="bg-light px-1 rounded small">#{{ c.id }}</code>
-                </td>
-                <td>
-                  <div class="fw-semibold small">{{ c.title[:60] }}{% if c.title|length > 60 %}...{% endif %}</div>
-                  <div class="text-muted" style="font-size:0.75rem;">
-                    SKU: {{ c.sku }}
-                    {% if row.competitor %}
-                      &nbsp;·&nbsp;
-                      <span style="color:#1d4ed8;">{{ row.competitor.display_name }}</span>
+              {% if candidates %}
+                {% for row in candidates %}
+                {% set c = row.product %}
+                <tr id="candidate-row-{{ c.id }}" data-id="{{ c.id }}">
+                  <td><code class="bg-light px-1 rounded small">#{{ c.id }}</code></td>
+                  <td>
+                    <div class="fw-semibold small">{{ c.title[:60] }}{% if c.title|length > 60 %}...{% endif %}</div>
+                    <div class="text-muted" style="font-size:0.75rem;">
+                      SKU: {{ c.sku }}
+                      {% if row.competitor %}
+                        &nbsp;·&nbsp;<span style="color:#1d4ed8;">{{ row.competitor.display_name }}</span>
+                      {% endif %}
+                    </div>
+                  </td>
+                  <td><small>{{ c.brand or '—' }}</small></td>
+                  <td class="text-end">
+                    {% if c.pret %}<small><strong>{{ "%.2f"|format(c.pret) }}</strong></small>
+                    {% else %}<small class="text-muted">—</small>{% endif %}
+                  </td>
+                  <td>
+                    {% if row.match_score is defined and row.match_score > 0 %}
+                      {% set pct = (row.match_score * 100)|int %}
+                      {% set color = 'success' if pct >= 85 else 'warning' if pct >= 50 else 'secondary' %}
+                      <span class="badge bg-{{ color }}">{{ pct }}%</span>
                     {% endif %}
-                  </div>
-                </td>
-                <td><small>{{ c.brand or '—' }}</small></td>
-                <td class="text-end">
-                  {% if c.pret %}
-                    <small><strong>{{ "%.2f"|format(c.pret) }}</strong></small>
-                  {% else %}
-                    <small class="text-muted">—</small>
-                  {% endif %}
-                </td>
-                <td>
-                  {% if row.match_score is defined and row.match_score > 0 %}
-                    {% set pct = (row.match_score * 100)|int %}
-                    {% set color = 'success' if pct >= 85 else 'warning' if pct >= 50 else 'secondary' %}
-                    <span class="badge bg-{{ color }}">{{ pct }}%</span>
-                  {% endif %}
-                  <div class="match-indicator" id="match-{{ c.id }}" style="display:none;">
-                    <i class="fas fa-check-circle text-success"></i>
-                  </div>
-                  {% set asocieri = source.asociere.split(';') if source.asociere else [] %}
-                  {% if c.id|string in asocieri and c.pret %}
-                    <button type="button"
-                            class="btn btn-xs btn-soft btn-pill btn-pret-preluat mt-1"
-                            data-source="{{ source.id }}"
-                            data-asociat="{{ c.id }}"
-                            data-pret="{{ c.pret }}"
-                            title="Preia pret {{ '%.2f'|format(c.pret) }} lei">
-                      <i class="fas fa-tag"></i> Preia pret
-                    </button>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
+                    <div class="match-indicator" id="match-{{ c.id }}" style="display:none;">
+                      <i class="fas fa-check-circle text-success"></i>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                <tr id="candidates-empty-row">
+                  <td colspan="5" class="text-center text-muted py-4">
+                    <i class="fas fa-search fa-2x mb-2 d-block"></i>
+                    Niciun candidat gasit pentru acest produs.
+                  </td>
+                </tr>
+              {% endif %}
             </tbody>
           </table>
         </div>
-        {% else %}
-          <div class="p-4 text-center text-muted">
-            <i class="fas fa-search fa-2x mb-2 d-block"></i>
-            Niciun candidat gasit pentru acest produs.
-          </div>
-        {% endif %}
       </div>
     </div>
 
@@ -181,9 +205,21 @@
           </button>
         </div>
       </div>
+      <div class="px-3 pt-2 pb-2 border-bottom bg-light d-flex align-items-center gap-2 flex-wrap">
+        <label class="small fw-bold text-muted mb-0" style="white-space:nowrap;">
+          <i class="fas fa-book me-1"></i>Biblioteca:
+        </label>
+        <select class="form-select form-select-sm" id="prompt-lib-sel" style="max-width:260px;">
+          <option value="">-- selecteaza prompt --</option>
+        </select>
+        <button class="btn btn-sm btn-soft btn-pill py-0 px-2" onclick="applyLibraryPrompt()">
+          <i class="fas fa-arrow-down me-1"></i>Aplica &amp; reincarca
+        </button>
+        <small class="text-muted" id="lib-prompt-desc"></small>
+      </div>
       <div class="card-body p-2">
         <textarea id="prompt-editor" class="form-control font-monospace"
-                  style="min-height:320px; font-size:0.8rem; resize:vertical;">{{ prompt }}</textarea>
+                  style="min-height:300px; font-size:0.8rem; resize:vertical;">{{ prompt }}</textarea>
       </div>
       <div class="card-footer bg-light d-flex align-items-center justify-content-between">
         <small class="text-muted">
@@ -221,20 +257,153 @@ const ORIGINAL_PROMPT = {{ prompt | tojson }};
 
 document.getElementById('btn-reset-prompt').addEventListener('click', function() {
   document.getElementById('prompt-editor').value = ORIGINAL_PROMPT;
+  selectedLibraryPromptId = null;
+  document.getElementById('prompt-lib-sel').value = '';
+  document.getElementById('lib-prompt-desc').textContent = '';
 });
 
+// ── Biblioteca de prompturi ─────────────────────────────────────────────────
+let promptLibrary = [];
+let selectedLibraryPromptId = null;
+
+async function loadPromptLibrary() {
+  const res = await fetch('/ai/prompts');
+  promptLibrary = await res.json();
+  const sel = document.getElementById('prompt-lib-sel');
+  promptLibrary.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name + (p.is_system ? ' ★' : '');
+    opt.dataset.description = p.description || '';
+    sel.appendChild(opt);
+  });
+}
+
+document.getElementById('prompt-lib-sel').addEventListener('change', function() {
+  const p = promptLibrary.find(x => x.id === parseInt(this.value));
+  selectedLibraryPromptId = p ? p.id : null;
+  document.getElementById('lib-prompt-desc').textContent = p ? (p.description || '') : '';
+});
+
+async function applyLibraryPrompt() {
+  if (!selectedLibraryPromptId) { alert('Selecteaza un prompt din biblioteca.'); return; }
+  const comps = getSelectedComps();
+  const btn = document.querySelector('[onclick="applyLibraryPrompt()"]');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Se incarca...';
+  try {
+    const qs = [
+      ...comps.map(c => `competitors=${encodeURIComponent(c)}`),
+      `template_id=${selectedLibraryPromptId}`,
+    ].join('&');
+    const resp = await fetch(`/ai/associate/${PRODUCT_ID}/candidates?${qs}`);
+    const data = await resp.json();
+    const badge = document.getElementById('candidates-count-badge');
+    if (badge) badge.textContent = data.count;
+    renderCandidatesTable(data.candidates);
+    document.getElementById('prompt-editor').value = data.prompt;
+    document.getElementById('reload-status').textContent = `${data.count} candidati, prompt aplicat.`;
+  } catch(err) {
+    alert('Eroare: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-arrow-down me-1"></i>Aplica &amp; reincarca';
+  }
+}
+
+loadPromptLibrary();
+
+// ── Competitori ────────────────────────────────────────────────────────────
+function getSelectedComps() {
+  return [...document.querySelectorAll('.comp-check:checked')].map(c => c.value);
+}
+
+function selectAllComps(checked) {
+  document.querySelectorAll('.comp-check').forEach(c => c.checked = checked);
+}
+
+async function reloadCandidates() {
+  const btn    = document.getElementById('btn-reload-candidates');
+  const status = document.getElementById('reload-status');
+  const comps  = getSelectedComps();
+  if (!comps.length) { status.textContent = 'Selecteaza cel putin un competitor.'; return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Se incarca...';
+  status.textContent = '';
+
+  try {
+    const qs   = comps.map(c => `competitors=${encodeURIComponent(c)}`).join('&');
+    const resp = await fetch(`/ai/associate/${PRODUCT_ID}/candidates?${qs}`);
+    const data = await resp.json();
+
+    // Actualizeaza badge count
+    const badge = document.getElementById('candidates-count-badge');
+    if (badge) badge.textContent = data.count;
+
+    // Re-renderizeaza tabelul de candidati
+    renderCandidatesTable(data.candidates);
+
+    // Actualizeaza prompt-ul
+    document.getElementById('prompt-editor').value = data.prompt;
+
+    status.textContent = `${data.count} candidati gasiti.`;
+  } catch(err) {
+    status.textContent = 'Eroare: ' + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Reincarca candidati';
+  }
+}
+
+function renderCandidatesTable(candidates) {
+  const tbody = document.querySelector('#candidates-table tbody');
+  if (!tbody) return;
+  if (!candidates.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">
+      <i class="fas fa-search fa-2x mb-2 d-block"></i>
+      Niciun candidat pentru competitorii selectati.
+    </td></tr>`;
+    return;
+  }
+  tbody.innerHTML = candidates.map(c => {
+    const pct   = Math.round((c.match_score || 0) * 100);
+    const color = pct >= 85 ? 'success' : pct >= 50 ? 'warning' : 'secondary';
+    const t     = c.title || '';
+    const title = escapeHtml(t.substring(0, 60)) + (t.length > 60 ? '...' : '');
+    const compSpan = c.competitor_name
+      ? ` &nbsp;·&nbsp; <span style="color:#1d4ed8;">${escapeHtml(c.competitor_name)}</span>`
+      : '';
+    return `
+    <tr id="candidate-row-${c.id}" data-id="${c.id}">
+      <td><code class="bg-light px-1 rounded small">#${c.id}</code></td>
+      <td>
+        <div class="fw-semibold small">${title}</div>
+        <div class="text-muted" style="font-size:0.75rem;">SKU: ${escapeHtml(c.sku||'')}${compSpan}</div>
+      </td>
+      <td><small>${escapeHtml(c.brand || '—')}</small></td>
+      <td class="text-end">${c.pret ? `<small><strong>${parseFloat(c.pret).toFixed(2)}</strong></small>` : '<small class="text-muted">—</small>'}</td>
+      <td>
+        ${pct > 0 ? `<span class="badge bg-${color}">${pct}%</span>` : ''}
+        <div class="match-indicator" id="match-${c.id}" style="display:none;"><i class="fas fa-check-circle text-success"></i></div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Trimite la AI ──────────────────────────────────────────────────────────
 document.getElementById('btn-send-ai').addEventListener('click', async function() {
   const btn = this;
   const prompt = document.getElementById('prompt-editor').value.trim();
   if (!prompt) return;
 
-  // UI loading
+  const selectedComps = getSelectedComps();
+
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Se trimite...';
   document.getElementById('ai-loading').style.display = 'block';
   document.getElementById('result-card').style.display = 'none';
 
-  // Reseteaza indicatorii de potrivire
   document.querySelectorAll('.match-indicator').forEach(el => el.style.display = 'none');
   document.querySelectorAll('#candidates-table tbody tr').forEach(tr => {
     tr.classList.remove('table-success', 'table-warning');
@@ -244,7 +413,11 @@ document.getElementById('btn-send-ai').addEventListener('click', async function(
     const resp = await fetch(`/ai/associate/${PRODUCT_ID}/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({
+        prompt,
+        prompt_id: selectedLibraryPromptId || null,
+        target_competitors: selectedComps.length ? selectedComps : null,
+      }),
     });
 
     const data = await resp.json();

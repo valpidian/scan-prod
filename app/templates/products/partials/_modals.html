@@ -1,0 +1,44 @@
+<!-- ── Modal: Calculeaza potriviri (scoring engine) ─────────────────────── -->
+<div class="modal fade" id="score-modal" tabindex="-1" aria-labelledby="score-modal-label" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="score-modal-label">
+          <i class="fas fa-calculator me-2" style="color:#6f42c1;"></i>
+          Calculeaza potriviri
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Inchide"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">
+          Motorul de scoring va analiza
+          <strong id="score-modal-count">0</strong> produse selectate
+          si va cauta candidati potriviti din alti competitori pe baza
+          <a href="{{ url_for('match_scores.rules') }}" target="_blank">regulilor configurate</a>.
+        </p>
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Scor minim pentru salvare</label>
+          <select class="form-select form-select-sm" id="score-min-score">
+            <option value="0.30">30% — include potriviri slabe</option>
+            <option value="0.40" selected>40% — recomandat</option>
+            <option value="0.50">50% — potriviri medii si bune</option>
+            <option value="0.70">70% — doar potriviri bune</option>
+            <option value="0.85">85% — doar potriviri sigure</option>
+          </select>
+        </div>
+        <p class="text-muted small mb-0">
+          <i class="fas fa-info-circle me-1"></i>
+          Rezultatele sunt salvate in baza de date si pot fi revizuite inainte de confirmare.
+        </p>
+        <div id="score-modal-result"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-pill" id="score-modal-run" onclick="runScoring()"
+                style="background:rgba(111,66,193,0.12);color:#6f42c1;border:1px solid rgba(111,66,193,0.3);">
+          <i class="fas fa-calculator me-1"></i> Calculeaza
+        </button>
+        <button class="btn btn-soft btn-pill" data-bs-dismiss="modal">Inchide</button>
+      </div>
+    </div>
+  </div>
+</div>

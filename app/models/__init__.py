@@ -4,7 +4,11 @@ from app.models.excluded_association import ExcludedAssociation
 from app.models.price_history import PriceHistory
 from app.models.notification import Notification
 from app.models.ai_config import AIConfig
+from app.models.ai_association_log import AIAssociationLog
 from app.models.search_config import SearchConfig
 from app.models.scraping_config import ScrapingConfig
 from app.models.scraping_url import ScrapingUrl
 from app.models.scraping_log import ScrapingLog
+from app.models.prompt_template import PromptTemplate
+from app.models.matching_rule import MatchingRule
+from app.models.product_match_score import ProductMatchScore

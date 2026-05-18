@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+{% block title %}Revizuire potriviri | Scan Pret{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <span class="eyebrow">Scoring Engine</span>
+    <h4 class="mb-0">Revizuire potriviri calculate</h4>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('match_scores.rules') }}" class="btn btn-soft btn-pill btn-sm">
+      <i class="fas fa-sliders-h me-1"></i> Reguli
+    </a>
+    <a href="{{ url_for('products.list_view') }}" class="btn btn-soft btn-pill btn-sm">
+      <i class="fas fa-arrow-left me-1"></i> Produse
+    </a>
+  </div>
+</div>
+
+<!-- Statistici -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="card text-center py-2">
+      <div class="fs-3 fw-bold text-warning">{{ stats.pending }}</div>
+      <div class="small text-muted">In asteptare</div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card text-center py-2">
+      <div class="fs-3 fw-bold text-success">{{ stats.confirmed }}</div>
+      <div class="small text-muted">Confirmate</div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card text-center py-2">
+      <div class="fs-3 fw-bold text-danger">{{ stats.rejected }}</div>
+      <div class="small text-muted">Respinse</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filtre -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="d-flex align-items-center gap-2 flex-wrap">
+      <label class="small fw-bold text-muted mb-0">Status:</label>
+      <select name="status" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+        <option value="" {% if not status_filter %}selected{% endif %}>Toate</option>
+        <option value="pending"   {% if status_filter == 'pending'   %}selected{% endif %}>In asteptare</option>
+        <option value="confirmed" {% if status_filter == 'confirmed' %}selected{% endif %}>Confirmate</option>
+        <option value="rejected"  {% if status_filter == 'rejected'  %}selected{% endif %}>Respinse</option>
+      </select>
+      <label class="small fw-bold text-muted mb-0 ms-2">Scor minim:</label>
+      <select name="min_score" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+        <option value="0"    {% if min_score_filter == 0 %}selected{% endif %}>Toate scorurile</option>
+        <option value="0.5"  {% if min_score_filter == 0.5 %}selected{% endif %}>&ge; 50%</option>
+        <option value="0.7"  {% if min_score_filter == 0.7 %}selected{% endif %}>&ge; 70%</option>
+        <option value="0.85" {% if min_score_filter == 0.85 %}selected{% endif %}>&ge; 85%</option>
+        <option value="0.95" {% if min_score_filter == 0.95 %}selected{% endif %}>&ge; 95%</option>
+      </select>
+    </form>
+  </div>
+</div>
+
+<!-- Bara actiuni -->
+<div id="action-bar" class="card mb-3" style="display:none; border:2px solid rgba(47,128,237,0.3); background:rgba(47,128,237,0.05);">
+  <div class="card-body py-2 d-flex align-items-center gap-3 flex-wrap">
+    <span id="sel-count" class="fw-bold text-primary"></span>
+    <button class="btn btn-success btn-pill btn-sm" onclick="bulkAction('confirm')">
+      <i class="fas fa-check me-1"></i> Confirma selectate
+    </button>
+    <button class="btn btn-warning btn-pill btn-sm" onclick="bulkAction('reject')">
+      <i class="fas fa-times me-1"></i> Respinge selectate
+    </button>
+    <button class="btn btn-outline-danger btn-pill btn-sm ms-auto" onclick="bulkAction('delete')">
+      <i class="fas fa-trash me-1"></i> Sterge selectate
+    </button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>
+      <strong>{{ pagination.total }} potriviri</strong>
+      <small class="text-muted ms-2">pagina {{ pagination.page }}/{{ pagination.pages }}</small>
+    </span>
+    {% if status_filter == 'pending' and records %}
+    <button class="btn btn-success btn-pill btn-sm" onclick="confirmAll()">
+      <i class="fas fa-check-double me-1"></i> Confirma toate din pagina
+    </button>
+    {% endif %}
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-light sticky-top">
+        <tr>
+          <th style="width:32px;">
+            <input type="checkbox" class="form-check-input" id="check-all" onchange="toggleAll(this.checked)">
+          </th>
+          <th>Produs sursa</th>
+          <th>Candidat potrivit</th>
+          <th class="text-center" style="width:80px;">Scor</th>
+          <th>Reguli aplicate</th>
+          <th style="width:100px;">Status</th>
+          <th style="width:120px;">Actiuni</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in records %}
+        {% set src = products_map.get(rec.product_id) %}
+        {% set cnd = products_map.get(rec.matched_product_id) %}
+        {% set breakdown = rec.get_breakdown() %}
+        {% set score_pct = (rec.score * 100) | int %}
+        {% set score_cls = 'success' if score_pct >= 85 else ('warning' if score_pct >= 60 else 'secondary') %}
+        <tr id="rec-row-{{ rec.id }}" class="{% if rec.status == 'confirmed' %}table-success{% elif rec.status == 'rejected' %}table-danger{% endif %}">
+          <td>
+            <input type="checkbox" class="form-check-input rec-check" value="{{ rec.id }}"
+                   onchange="updateBar()">
+          </td>
+          <td>
+            {% if src %}
+              <div class="fw-semibold small">{{ src.title[:55] }}{% if src.title|length > 55 %}…{% endif %}</div>
+              <div class="text-muted" style="font-size:.72rem;">
+                <code>{{ src.sku }}</code>
+                <span class="ms-1">{{ comp_map.get(src.cod_competitor, src.cod_competitor) }}</span>
+              </div>
+            {% else %}
+              <span class="text-muted small">#{{ rec.product_id }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if cnd %}
+              <div class="fw-semibold small">{{ cnd.title[:55] }}{% if cnd.title|length > 55 %}…{% endif %}</div>
+              <div class="text-muted" style="font-size:.72rem;">
+                <code>{{ cnd.sku }}</code>
+                <span class="ms-1">{{ comp_map.get(cnd.cod_competitor, cnd.cod_competitor) }}</span>
+                {% if cnd.pret %}· <strong>{{ '%.2f'|format(cnd.pret) }} lei</strong>{% endif %}
+              </div>
+            {% else %}
+              <span class="text-muted small">#{{ rec.matched_product_id }}</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <span class="badge bg-{{ score_cls }} fs-6">{{ score_pct }}%</span>
+          </td>
+          <td>
+            {% for label, val in breakdown.items() %}
+              <span class="badge rounded-pill me-1 mb-1"
+                    style="background:rgba(47,128,237,0.10);color:#1d4ed8;font-size:.68rem;"
+                    title="{{ '%.0f'|format(val * 100) }}%">
+                {{ label }}
+              </span>
+            {% endfor %}
+          </td>
+          <td>
+            {% if rec.status == 'pending' %}
+              <span class="badge bg-warning text-dark">In asteptare</span>
+            {% elif rec.status == 'confirmed' %}
+              <span class="badge bg-success">Confirmat</span>
+            {% elif rec.status == 'rejected' %}
+              <span class="badge bg-danger">Respins</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="d-flex gap-1">
+              {% if rec.status == 'pending' %}
+              <button class="btn btn-xs btn-outline-success py-0 px-1"
+                      title="Confirma" onclick="singleAction('confirm', {{ rec.id }}, this)">
+                <i class="fas fa-check fa-xs"></i>
+              </button>
+              <button class="btn btn-xs btn-outline-danger py-0 px-1"
+                      title="Respinge" onclick="singleAction('reject', {{ rec.id }}, this)">
+                <i class="fas fa-times fa-xs"></i>
+              </button>
+              {% endif %}
+              {% if src and cnd %}
+              <a href="{{ url_for('ai_association.associate', product_id=rec.product_id) }}"
+                 class="btn btn-xs btn-outline-secondary py-0 px-1" title="AI Workbench">
+                <i class="fas fa-robot fa-xs"></i>
+              </a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-4">
+            <i class="fas fa-search fa-2x mb-2 d-block"></i>
+            Nicio potrivire gasita cu aceste filtre.
+            <a href="{{ url_for('products.list_view') }}" class="d-block mt-2 small">
+              Mergi la lista produse pentru a calcula potriviri
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pagination.pages > 1 %}
+  <div class="card-footer">
+    <nav>
+      <ul class="pagination pagination-sm mb-0 justify-content-center">
+        {% if pagination.has_prev %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ pagination.prev_num }}&status={{ status_filter }}&min_score={{ min_score_filter }}">«</a>
+          </li>
+        {% endif %}
+        {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+          {% if p %}
+            <li class="page-item {% if p == pagination.page %}active{% endif %}">
+              <a class="page-link" href="?page={{ p }}&status={{ status_filter }}&min_score={{ min_score_filter }}">{{ p }}</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+          {% endif %}
+        {% endfor %}
+        {% if pagination.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ pagination.next_num }}&status={{ status_filter }}&min_score={{ min_score_filter }}">»</a>
+          </li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+const selectedIds = new Set();
+
+function toggleAll(checked) {
+  document.querySelectorAll('.rec-check').forEach(cb => {
+    cb.checked = checked;
+    const id = parseInt(cb.value);
+    checked ? selectedIds.add(id) : selectedIds.delete(id);
+  });
+  updateBar();
+}
+
+function updateBar() {
+  document.querySelectorAll('.rec-check').forEach(cb => {
+    const id = parseInt(cb.value);
+    cb.checked ? selectedIds.add(id) : selectedIds.delete(id);
+  });
+  const bar = document.getElementById('action-bar');
+  const cnt = document.getElementById('sel-count');
+  if (selectedIds.size > 0) {
+    bar.style.display = '';
+    cnt.textContent = `${selectedIds.size} selectate`;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+async function bulkAction(action) {
+  if (!selectedIds.size) return;
+  const ids = [...selectedIds];
+  if (action === 'delete' && !confirm(`Stergi ${ids.length} inregistrari?`)) return;
+
+  const resp = await fetch(`/match-scores/${action}`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ids}),
+  });
+  const data = await resp.json();
+  if (data.ok) {
+    ids.forEach(id => {
+      const row = document.getElementById(`rec-row-${id}`);
+      if (row) {
+        if (action === 'delete') {
+          row.remove();
+        } else {
+          row.className = action === 'confirm' ? 'table-success' : 'table-danger';
+          row.querySelector('.rec-check').checked = false;
+        }
+      }
+    });
+    selectedIds.clear();
+    updateBar();
+    document.getElementById('check-all').checked = false;
+  }
+}
+
+async function singleAction(action, id, btn) {
+  btn.disabled = true;
+  const resp = await fetch(`/match-scores/${action}`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ids: [id]}),
+  });
+  const data = await resp.json();
+  if (data.ok) {
+    const row = document.getElementById(`rec-row-${id}`);
+    if (row) row.className = action === 'confirm' ? 'table-success' : 'table-danger';
+    // Inlocuieste butoanele cu status
+    const cell = btn.closest('td');
+    const statusCell = row.querySelector('td:nth-child(6)');
+    if (statusCell) {
+      statusCell.innerHTML = action === 'confirm'
+        ? '<span class="badge bg-success">Confirmat</span>'
+        : '<span class="badge bg-danger">Respins</span>';
+    }
+    row.querySelectorAll('.btn-outline-success, .btn-outline-danger').forEach(b => {
+      if (!b.title.includes('Workbench')) b.remove();
+    });
+  } else {
+    btn.disabled = false;
+    alert(data.error || 'Eroare');
+  }
+}
+
+async function confirmAll() {
+  const ids = [...document.querySelectorAll('.rec-check')].map(cb => parseInt(cb.value));
+  if (!ids.length || !confirm(`Confirmi toate cele ${ids.length} potriviri din aceasta pagina?`)) return;
+  const resp = await fetch('/match-scores/confirm', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ids}),
+  });
+  const data = await resp.json();
+  if (data.ok) location.reload();
+}
+</script>
+{% endblock %}

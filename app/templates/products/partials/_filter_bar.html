@@ -1,0 +1,61 @@
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form" class="row g-2 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label mb-1 small fw-bold">Competitor</label>
+        <select class="form-select form-select-sm" name="competitor" onchange="this.form.submit()">
+          <option value="">Toti</option>
+          {% for c in competitors %}
+            <option value="{{ c.internal_code }}" {% if filters.competitor == c.internal_code %}selected{% endif %}>
+              {{ c.internal_code }} - {{ c.display_name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label mb-1 small fw-bold">Cautare</label>
+        <input class="form-control form-control-sm" id="input-q" name="q"
+               value="{{ filters.q }}" placeholder="SKU, titlu, brand..." autocomplete="off">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label mb-1 small fw-bold">Sortare</label>
+        <select class="form-select form-select-sm" name="sort" onchange="this.form.submit()">
+          <option value="title"        {% if filters.sort=='title'        %}selected{% endif %}>Titlu</option>
+          <option value="sku"          {% if filters.sort=='sku'          %}selected{% endif %}>SKU</option>
+          <option value="pret"         {% if filters.sort=='pret'         %}selected{% endif %}>Pret</option>
+          <option value="pret_preluat" {% if filters.sort=='pret_preluat' %}selected{% endif %}>Pret preluat</option>
+          <option value="brand"        {% if filters.sort=='brand'        %}selected{% endif %}>Brand</option>
+        </select>
+      </div>
+      <div class="col-md-1">
+        <label class="form-label mb-1 small fw-bold">Directie</label>
+        <select class="form-select form-select-sm" name="direction" onchange="this.form.submit()">
+          <option value="asc"  {% if filters.direction=='asc'  %}selected{% endif %}>Asc</option>
+          <option value="desc" {% if filters.direction=='desc' %}selected{% endif %}>Desc</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label mb-1 small fw-bold">Produse / pagina</label>
+        <select class="form-select form-select-sm" name="per_page" onchange="this.form.submit()">
+          {% for n in allowed_per_page %}
+            <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }}</option>
+          {% endfor %}
+          <option value="0" {% if per_page == 0 %}selected{% endif %}>Toate</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label mb-1 small fw-bold">Status AI</label>
+        <select class="form-select form-select-sm" name="ai_status" onchange="this.form.submit()">
+          <option value="">Toate</option>
+          <option value="neprocesate" {% if filters.ai_status=='neprocesate' %}selected{% endif %}>Neprocesate</option>
+          <option value="procesate"   {% if filters.ai_status=='procesate'   %}selected{% endif %}>Procesate</option>
+          <option value="confirmate"  {% if filters.ai_status=='confirmate'  %}selected{% endif %}>Confirmate</option>
+        </select>
+      </div>
+      <div class="col-md-2 d-flex gap-2 align-items-end">
+        <button class="btn btn-primary btn-pill btn-sm" type="submit">Aplica</button>
+        <a class="btn btn-soft btn-pill btn-sm" href="{{ url_for('products.list_view') }}">Reset</a>
+      </div>
+    </form>
+  </div>
+</div>

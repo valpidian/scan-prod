@@ -1,0 +1,32 @@
+{% if pagination.pages > 1 and per_page != 0 %}
+<div class="d-flex justify-content-center align-items-center gap-3 mt-4" id="pagination-nav">
+  <nav>
+    <ul class="pagination mb-0">
+      <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+        <a class="page-link"
+           href="{{ url_for('products.list_view', page=pagination.prev_num, per_page=per_page, **filters) }}">&laquo;</a>
+      </li>
+      {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+        {% if p %}
+          <li class="page-item {% if p == pagination.page %}active{% endif %}">
+            <a class="page-link"
+               href="{{ url_for('products.list_view', page=p, per_page=per_page, **filters) }}">{{ p }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+        {% endif %}
+      {% endfor %}
+      <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+        <a class="page-link"
+           href="{{ url_for('products.list_view', page=pagination.next_num, per_page=per_page, **filters) }}">&raquo;</a>
+      </li>
+    </ul>
+  </nav>
+</div>
+{% endif %}
+
+<div id="scroll-sentinel" style="height:1px; margin-top:8px;"></div>
+<div id="scroll-loader" class="text-center py-3" style="display:none;">
+  <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+  <small class="text-muted">Se incarca mai multe produse...</small>
+</div>

@@ -1,0 +1,189 @@
+﻿Fetching URL...
+================================================================================
+URL: https://www.climatico.ro/aer-conditionat-whirlpool-amd-355-1-inverter-premium-sail-silver-12000-btu.html
+================================================================================
+Status code: 200
+Content length: 474623 bytes
+
+Test 1: soup.select_one("meta[property="og:title"]")
+--------------------------------------------------------------------------------
+Result: <meta content="Aer Conditionat Whirlpool AMD 355/1 Inverter Premium Sail Silver 12000 BTU" property="og:title">
+<meta content="." property="og:description">
+<meta content="1000" property="og:image:width"/>
+<meta content="1000" property="og:image:height"/>
+<meta content="https://www.climatico.ro/media/catalog/product/a/e/aer_conditionat_whirlpool_amd_355-1_inverter_premium_sail_silver_12000_btu.jpg" property="og:image"/>
+<meta content="https://www.climatico.ro/media/catalog/product/a/e/aer_conditionat_whirlpool_amd_355-1_inverter_premium_sail_silver_12000_btu.jpg" property="og:image:secure_url"/>
+<meta content="https://www.climatico.ro/aer-conditionat-whirlpool-amd-355-1-inverter-premium-sail-silver-12000-btu.html" property="og:url"/>
+<meta content="ro_RO" property="og:locale"/>
+<meta content="2489.99" property="product:price:amount"/>
+<meta content="RON" property="product:price:currency"/>
+<meta content="outofstock" property="product:availability"/>
+<meta content="AMD 355/1" property="product:retailer_item_id"/>
+<script nonce="ZzRyaTZrZWc0dnJocjN4enk0enZ6YmpxZDN6cnBoaHY=">(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.nonce='ZzRyaTZrZWc0dnJocjN4enk0enZ6YmpxZDN6cnBoaHY=';j.src=
+
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+
+})(window,document,'script','dataLayer','GTM-52HTB5M');</script>
+<!-- End Google Tag Manager -->
+<style> .swatch-option-loading-webp { content: url(https://www.climatico.ro/static/version1774803830/frontend/Infortis/climatico/ro_RO/images/loader-2.gif); } @keyframes imgpulse { 50% { opacity: 0.5; } }</style> <style> .ec-gtm-cookie-directive > div { background: #ffffff; color: #000000; -webkit-border-radius: 8px; -moz-border-radius: 8px; -ms-border-radius: 8px; -o-border-radius: 8px; border-radius: 8px; } .ec-gtm-cookie-directive > div > div > div { padding-left: 0px; } .ec-gtm-cookie-directive > div > div > div a.action.accept, .ec-gtm-cookie-directive > div > div > div a.action.accept-all { color: #8bc53f; } .ec-gtm-cookie-directive > div > div > div a.action.refuse, .ec-gtm-cookie-directive > div > div > div a.action.customize { color: #000000; } .ec-gtm-cookie-directive > div > div > div .ec-gtm-cookie-directive-note-toggle { color: #8bc53f; } .ec-gtm-cookie-directive-segments { background: #ffffff; } .ec-gtm-cookie-directive-segments > div input[type="checkbox"] + label:before { border:1px solid #000000; } .ec-gtm-cookie-directive .consent-logo { width: 0px; } </style></meta></meta>
+
+Test 2: soup.select_one('meta[property="og:title"]')
+--------------------------------------------------------------------------------
+Result: <meta content="Aer Conditionat Whirlpool AMD 355/1 Inverter Premium Sail Silver 12000 BTU" property="og:title">
+<meta content="." property="og:description">
+<meta content="1000" property="og:image:width"/>
+<meta content="1000" property="og:image:height"/>
+<meta content="https://www.climatico.ro/media/catalog/product/a/e/aer_conditionat_whirlpool_amd_355-1_inverter_premium_sail_silver_12000_btu.jpg" property="og:image"/>
+<meta content="https://www.climatico.ro/media/catalog/product/a/e/aer_conditionat_whirlpool_amd_355-1_inverter_premium_sail_silver_12000_btu.jpg" property="og:image:secure_url"/>
+<meta content="https://www.climatico.ro/aer-conditionat-whirlpool-amd-355-1-inverter-premium-sail-silver-12000-btu.html" property="og:url"/>
+<meta content="ro_RO" property="og:locale"/>
+<meta content="2489.99" property="product:price:amount"/>
+<meta content="RON" property="product:price:currency"/>
+<meta content="outofstock" property="product:availability"/>
+<meta content="AMD 355/1" property="product:retailer_item_id"/>
+<script nonce="ZzRyaTZrZWc0dnJocjN4enk0enZ6YmpxZDN6cnBoaHY=">(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.nonce='ZzRyaTZrZWc0dnJocjN4enk0enZ6YmpxZDN6cnBoaHY=';j.src=
+
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+
+})(window,document,'script','dataLayer','GTM-52HTB5M');</script>
+<!-- End Google Tag Manager -->
+<style> .swatch-option-loading-webp { content: url(https://www.climatico.ro/static/version1774803830/frontend/Infortis/climatico/ro_RO/images/loader-2.gif); } @keyframes imgpulse { 50% { opacity: 0.5; } }</style> <style> .ec-gtm-cookie-directive > div { background: #ffffff; color: #000000; -webkit-border-radius: 8px; -moz-border-radius: 8px; -ms-border-radius: 8px; -o-border-radius: 8px; border-radius: 8px; } .ec-gtm-cookie-directive > div > div > div { padding-left: 0px; } .ec-gtm-cookie-directive > div > div > div a.action.accept, .ec-gtm-cookie-directive > div > div > div a.action.accept-all { color: #8bc53f; } .ec-gtm-cookie-directive > div > div > div a.action.refuse, .ec-gtm-cookie-directive > div > div > div a.action.customize { color: #000000; } .ec-gtm-cookie-directive > div > div > div .ec-gtm-cookie-directive-note-toggle { color: #8bc53f; } .ec-gtm-cookie-directive-segments { background: #ffffff; } .ec-gtm-cookie-directive-segments > div input[type="checkbox"] + label:before { border:1px solid #000000; } .ec-gtm-cookie-directive .consent-logo { width: 0px; } </style></meta></meta>
+
+Test 3: Manual search for all meta tags with property attribute
+--------------------------------------------------------------------------------
+Total meta tags with property attribute: 13
+
+First 5 examples:
+1. <meta content="product" property="og:type">
+<meta content="Aer Conditionat Whirlpool AMD 355/1 Inverter Premium Sail Silver 12000 BTU" property="og:title">
+<meta content="." property="og:description">
+<meta content="1000" property="og:image:width"/>
+<meta content="1000" property="og:image:height"/>
+<meta content="https://www.climatico.ro/media/catalog/product/a/e/aer_conditionat_whirlpool_amd_355-1_inverter_premium_sail_silver_12000_btu.jpg" property="og:image"/>
+<meta content="https://www.climatico.ro/media/catalog/product/a/e/aer_conditionat_whirlpool_amd_355-1_inverter_premium_sail_silver_12000_btu.jpg" property="og:image:secure_url"/>
+<meta content="https://www.climatico.ro/aer-conditionat-whirlpool-amd-355-1-inverter-premium-sail-silver-12000-btu.html" property="og:url"/>
+<meta content="ro_RO" property="og:locale"/>
+<meta content="2489.99" property="product:price:amount"/>
+<meta content="RON" property="product:price:currency"/>
+<meta content="outofstock" property="product:availability"/>
+<meta content="AMD 355/1" property="product:retailer_item_id"/>
+<script nonce="ZzRyaTZrZWc0dnJocjN4enk0enZ6YmpxZDN6cnBoaHY=">(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.nonce='ZzRyaTZrZWc0dnJocjN4enk0enZ6YmpxZDN6cnBoaHY=';j.src=
+
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+
+})(window,document,'script','dataLayer','GTM-52HTB5M');</script>
+<!-- End Google Tag Manager -->
+<style> .swatch-option-loading-webp { content: url(https://www.climatico.ro/static/version1774803830/frontend/Infortis/climatico/ro_RO/images/loader-2.gif); } @keyframes imgpulse { 50% { opacity: 0.5; } }</style> <style> .ec-gtm-cookie-directive > div { background: #ffffff; color: #000000; -webkit-border-radius: 8px; -moz-border-radius: 8px; -ms-border-radius: 8px; -o-border-radius: 8px; border-radius: 8px; } .ec-gtm-cookie-directive > div > div > div { padding-left: 0px; } .ec-gtm-cookie-directive > div > div > div a.action.accept, .ec-gtm-cookie-directive > div > div > div a.action.accept-all { color: #8bc53f; } .ec-gtm-cookie-directive > div > div > div a.action.refuse, .ec-gtm-cookie-directive > div > div > div a.action.customize { color: #000000; } .ec-gtm-cookie-directive > div > div > div .ec-gtm-cookie-directive-note-toggle { color: #8bc53f; } .ec-gtm-cookie-directive-segments { background: #ffffff; } .ec-gtm-cookie-directive-segments > div input[type="checkbox"] + label:before { border:1px solid #000000; } .ec-gtm-cookie-directive .consent-logo { width: 0px; } </style></meta></meta></meta>
+2. <meta content="Aer Conditionat Whirlpool AMD 355/1 Inverter Premium Sail Silver 12000 BTU" property="og:title">
+<meta content="." property="og:description">
+<meta content="1000" property="og:image:width"/>
+<meta content="1000" property="og:image:height"/>
+<meta content="https://www.climatico.ro/media/catalog/product/a/e/aer_conditionat_whirlpool_amd_355-1_inverter_premium_sail_silver_12000_btu.jpg" property="og:image"/>
+<meta content="https://www.climatico.ro/media/catalog/product/a/e/aer_conditionat_whirlpool_amd_355-1_inverter_premium_sail_silver_12000_btu.jpg" property="og:image:secure_url"/>
+<meta content="https://www.climatico.ro/aer-conditionat-whirlpool-amd-355-1-inverter-premium-sail-silver-12000-btu.html" property="og:url"/>
+<meta content="ro_RO" property="og:locale"/>
+<meta content="2489.99" property="product:price:amount"/>
+<meta content="RON" property="product:price:currency"/>
+<meta content="outofstock" property="product:availability"/>
+<meta content="AMD 355/1" property="product:retailer_item_id"/>
+<script nonce="ZzRyaTZrZWc0dnJocjN4enk0enZ6YmpxZDN6cnBoaHY=">(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.nonce='ZzRyaTZrZWc0dnJocjN4enk0enZ6YmpxZDN6cnBoaHY=';j.src=
+
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+
+})(window,document,'script','dataLayer','GTM-52HTB5M');</script>
+<!-- End Google Tag Manager -->
+<style> .swatch-option-loading-webp { content: url(https://www.climatico.ro/static/version1774803830/frontend/Infortis/climatico/ro_RO/images/loader-2.gif); } @keyframes imgpulse { 50% { opacity: 0.5; } }</style> <style> .ec-gtm-cookie-directive > div { background: #ffffff; color: #000000; -webkit-border-radius: 8px; -moz-border-radius: 8px; -ms-border-radius: 8px; -o-border-radius: 8px; border-radius: 8px; } .ec-gtm-cookie-directive > div > div > div { padding-left: 0px; } .ec-gtm-cookie-directive > div > div > div a.action.accept, .ec-gtm-cookie-directive > div > div > div a.action.accept-all { color: #8bc53f; } .ec-gtm-cookie-directive > div > div > div a.action.refuse, .ec-gtm-cookie-directive > div > div > div a.action.customize { color: #000000; } .ec-gtm-cookie-directive > div > div > div .ec-gtm-cookie-directive-note-toggle { color: #8bc53f; } .ec-gtm-cookie-directive-segments { background: #ffffff; } .ec-gtm-cookie-directive-segments > div input[type="checkbox"] + label:before { border:1px solid #000000; } .ec-gtm-cookie-directive .consent-logo { width: 0px; } </style></meta></meta>
+3. <meta content="." property="og:description">
+<meta content="1000" property="og:image:width"/>
+<meta content="1000" property="og:image:height"/>
+<meta content="https://www.climatico.ro/media/catalog/product/a/e/aer_conditionat_whirlpool_amd_355-1_inverter_premium_sail_silver_12000_btu.jpg" property="og:image"/>
+<meta content="https://www.climatico.ro/media/catalog/product/a/e/aer_conditionat_whirlpool_amd_355-1_inverter_premium_sail_silver_12000_btu.jpg" property="og:image:secure_url"/>
+<meta content="https://www.climatico.ro/aer-conditionat-whirlpool-amd-355-1-inverter-premium-sail-silver-12000-btu.html" property="og:url"/>
+<meta content="ro_RO" property="og:locale"/>
+<meta content="2489.99" property="product:price:amount"/>
+<meta content="RON" property="product:price:currency"/>
+<meta content="outofstock" property="product:availability"/>
+<meta content="AMD 355/1" property="product:retailer_item_id"/>
+<script nonce="ZzRyaTZrZWc0dnJocjN4enk0enZ6YmpxZDN6cnBoaHY=">(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.nonce='ZzRyaTZrZWc0dnJocjN4enk0enZ6YmpxZDN6cnBoaHY=';j.src=
+
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+
+})(window,document,'script','dataLayer','GTM-52HTB5M');</script>
+<!-- End Google Tag Manager -->
+<style> .swatch-option-loading-webp { content: url(https://www.climatico.ro/static/version1774803830/frontend/Infortis/climatico/ro_RO/images/loader-2.gif); } @keyframes imgpulse { 50% { opacity: 0.5; } }</style> <style> .ec-gtm-cookie-directive > div { background: #ffffff; color: #000000; -webkit-border-radius: 8px; -moz-border-radius: 8px; -ms-border-radius: 8px; -o-border-radius: 8px; border-radius: 8px; } .ec-gtm-cookie-directive > div > div > div { padding-left: 0px; } .ec-gtm-cookie-directive > div > div > div a.action.accept, .ec-gtm-cookie-directive > div > div > div a.action.accept-all { color: #8bc53f; } .ec-gtm-cookie-directive > div > div > div a.action.refuse, .ec-gtm-cookie-directive > div > div > div a.action.customize { color: #000000; } .ec-gtm-cookie-directive > div > div > div .ec-gtm-cookie-directive-note-toggle { color: #8bc53f; } .ec-gtm-cookie-directive-segments { background: #ffffff; } .ec-gtm-cookie-directive-segments > div input[type="checkbox"] + label:before { border:1px solid #000000; } .ec-gtm-cookie-directive .consent-logo { width: 0px; } </style></meta>
+4. <meta content="1000" property="og:image:width"/>
+5. <meta content="1000" property="og:image:height"/>
+
+Test 4: Exact HTML of first meta[property] tag
+--------------------------------------------------------------------------------
+Tag string: <meta content="product" property="og:type">
+<meta content="Aer Conditionat Whirlpool AMD 355/1 Inverter Premium Sail Silver 12000 BTU" property="og:title">
+<meta content="." property="og:description">
+<meta content="1000" property="og:image:width"/>
+<meta content="1000" property="og:image:height"/>
+<meta content="https://www.climatico.ro/media/catalog/product/a/e/aer_conditionat_whirlpool_amd_355-1_inverter_premium_sail_silver_12000_btu.jpg" property="og:image"/>
+<meta content="https://www.climatico.ro/media/catalog/product/a/e/aer_conditionat_whirlpool_amd_355-1_inverter_premium_sail_silver_12000_btu.jpg" property="og:image:secure_url"/>
+<meta content="https://www.climatico.ro/aer-conditionat-whirlpool-amd-355-1-inverter-premium-sail-silver-12000-btu.html" property="og:url"/>
+<meta content="ro_RO" property="og:locale"/>
+<meta content="2489.99" property="product:price:amount"/>
+<meta content="RON" property="product:price:currency"/>
+<meta content="outofstock" property="product:availability"/>
+<meta content="AMD 355/1" property="product:retailer_item_id"/>
+<script nonce="ZzRyaTZrZWc0dnJocjN4enk0enZ6YmpxZDN6cnBoaHY=">(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.nonce='ZzRyaTZrZWc0dnJocjN4enk0enZ6YmpxZDN6cnBoaHY=';j.src=
+
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+
+})(window,document,'script','dataLayer','GTM-52HTB5M');</script>
+<!-- End Google Tag Manager -->
+<style> .swatch-option-loading-webp { content: url(https://www.climatico.ro/static/version1774803830/frontend/Infortis/climatico/ro_RO/images/loader-2.gif); } @keyframes imgpulse { 50% { opacity: 0.5; } }</style> <style> .ec-gtm-cookie-directive > div { background: #ffffff; color: #000000; -webkit-border-radius: 8px; -moz-border-radius: 8px; -ms-border-radius: 8px; -o-border-radius: 8px; border-radius: 8px; } .ec-gtm-cookie-directive > div > div > div { padding-left: 0px; } .ec-gtm-cookie-directive > div > div > div a.action.accept, .ec-gtm-cookie-directive > div > div > div a.action.accept-all { color: #8bc53f; } .ec-gtm-cookie-directive > div > div > div a.action.refuse, .ec-gtm-cookie-directive > div > div > div a.action.customize { color: #000000; } .ec-gtm-cookie-directive > div > div > div .ec-gtm-cookie-directive-note-toggle { color: #8bc53f; } .ec-gtm-cookie-directive-segments { background: #ffffff; } .ec-gtm-cookie-directive-segments > div input[type="checkbox"] + label:before { border:1px solid #000000; } .ec-gtm-cookie-directive .consent-logo { width: 0px; } </style></meta></meta></meta>
+Tag name: meta
+Tag attributes: {'property': 'og:type', 'content': 'product'}
+
+Found og:title tag:
+<meta content="Aer Conditionat Whirlpool AMD 355/1 Inverter Premium Sail Silver 12000 BTU" property="og:title">
+<meta content="." property="og:description">
+<meta content="1000" property="og:image:width"/>
+<meta content="1000" property="og:image:height"/>
+<meta content="https://www.climatico.ro/media/catalog/product/a/e/aer_conditionat_whirlpool_amd_355-1_inverter_premium_sail_silver_12000_btu.jpg" property="og:image"/>
+<meta content="https://www.climatico.ro/media/catalog/product/a/e/aer_conditionat_whirlpool_amd_355-1_inverter_premium_sail_silver_12000_btu.jpg" property="og:image:secure_url"/>
+<meta content="https://www.climatico.ro/aer-conditionat-whirlpool-amd-355-1-inverter-premium-sail-silver-12000-btu.html" property="og:url"/>
+<meta content="ro_RO" property="og:locale"/>
+<meta content="2489.99" property="product:price:amount"/>
+<meta content="RON" property="product:price:currency"/>
+<meta content="outofstock" property="product:availability"/>
+<meta content="AMD 355/1" property="product:retailer_item_id"/>
+<script nonce="ZzRyaTZrZWc0dnJocjN4enk0enZ6YmpxZDN6cnBoaHY=">(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.nonce='ZzRyaTZrZWc0dnJocjN4enk0enZ6YmpxZDN6cnBoaHY=';j.src=
+
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+
+})(window,document,'script','dataLayer','GTM-52HTB5M');</script>
+<!-- End Google Tag Manager -->
+<style> .swatch-option-loading-webp { content: url(https://www.climatico.ro/static/version1774803830/frontend/Infortis/climatico/ro_RO/images/loader-2.gif); } @keyframes imgpulse { 50% { opacity: 0.5; } }</style> <style> .ec-gtm-cookie-directive > div { background: #ffffff; color: #000000; -webkit-border-radius: 8px; -moz-border-radius: 8px; -ms-border-radius: 8px; -o-border-radius: 8px; border-radius: 8px; } .ec-gtm-cookie-directive > div > div > div { padding-left: 0px; } .ec-gtm-cookie-directive > div > div > div a.action.accept, .ec-gtm-cookie-directive > div > div > div a.action.accept-all { color: #8bc53f; } .ec-gtm-cookie-directive > div > div > div a.action.refuse, .ec-gtm-cookie-directive > div > div > div a.action.customize { color: #000000; } .ec-gtm-cookie-directive > div > div > div .ec-gtm-cookie-directive-note-toggle { color: #8bc53f; } .ec-gtm-cookie-directive-segments { background: #ffffff; } .ec-gtm-cookie-directive-segments > div input[type="checkbox"] + label:before { border:1px solid #000000; } .ec-gtm-cookie-directive .consent-logo { width: 0px; } </style></meta></meta>

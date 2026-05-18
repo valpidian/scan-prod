@@ -1,4 +1,4 @@
-from sqlalchemy import or_
+from sqlalchemy import exists, or_
 
 from app.models.competitor import Competitor
 from app.models.competitor_product import CompetitorProduct
@@ -11,9 +11,28 @@ def build_query(filters):
     search = filters.get("q")
     sort = filters.get("sort", "title")
     direction = filters.get("direction", "asc")
+    ai_status = filters.get("ai_status", "").strip()
 
     if competitor:
         query = query.filter_by(cod_competitor=competitor)
+
+    if ai_status:
+        from app.models.ai_association_log import AIAssociationLog
+        if ai_status == "neprocesate":
+            query = query.filter(
+                ~exists().where(AIAssociationLog.product_id == CompetitorProduct.id)
+            )
+        elif ai_status == "procesate":
+            query = query.filter(
+                exists().where(AIAssociationLog.product_id == CompetitorProduct.id)
+            )
+        elif ai_status == "confirmate":
+            query = query.filter(
+                exists().where(
+                    (AIAssociationLog.product_id == CompetitorProduct.id)
+                    & (AIAssociationLog.status == "confirmed")
+                )
+            )
 
     if search:
         pattern = f"%{search}%"

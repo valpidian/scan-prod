@@ -61,9 +61,23 @@
           <input type="number" class="form-control form-control-sm" id="delay-ms" value="500" min="0" max="5000" step="100">
         </div>
         <div class="mb-0">
-          <label class="edit-label">Prompt custom (optional)</label>
-          <textarea class="form-control form-control-sm font-monospace" id="custom-prompt" rows="3"
-                    placeholder="Lasa gol pentru promptul din configurare AI..."></textarea>
+          <label class="edit-label">Prompt de asociere</label>
+          <select class="form-select form-select-sm mb-2" id="prompt-selector">
+            <option value="">-- din configurare AI --</option>
+            {% for p in prompts %}
+            <option value="{{ p.id }}"
+                    data-description="{{ p.description or '' }}"
+                    data-body="{{ p.body | e }}">
+              {{ p.name }}{% if p.is_system %} ★{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <small class="text-muted d-block mb-1" id="prompt-desc-hint"></small>
+          <details id="prompt-preview-details">
+            <summary class="text-muted small" style="cursor:pointer;">Previzualizare / editare manuala</summary>
+            <textarea class="form-control form-control-sm font-monospace mt-1" id="custom-prompt" rows="5"
+                      placeholder="Selecteaza un prompt sau scrie unul personalizat..."></textarea>
+          </details>
         </div>
       </div>
     </div>
@@ -170,10 +184,26 @@ let queue = [...PRODUCT_IDS];
 let running = false, paused = false, stopped = false;
 let doneCount = 0, okCount = 0, noneCount = 0, errCount = 0;
 const allResults = [];
+let selectedPromptId = null;
 
 // Slider concurenta
 document.getElementById('concurrency').addEventListener('input', function() {
   document.getElementById('concurrency-val').textContent = this.value;
+});
+
+// Selector prompt
+document.getElementById('prompt-selector').addEventListener('change', function() {
+  const opt = this.options[this.selectedIndex];
+  if (this.value) {
+    selectedPromptId = parseInt(this.value);
+    document.getElementById('custom-prompt').value = opt.dataset.body || '';
+    document.getElementById('prompt-desc-hint').textContent = opt.dataset.description || '';
+    document.getElementById('prompt-preview-details').open = true;
+  } else {
+    selectedPromptId = null;
+    document.getElementById('custom-prompt').value = '';
+    document.getElementById('prompt-desc-hint').textContent = '';
+  }
 });
 
 // Selectie competitori
@@ -226,7 +256,7 @@ async function startProcessing() {
   const customPrompt = document.getElementById('custom-prompt').value.trim();
   const targetCompetitors = getSelectedCompetitors();
 
-  const workers = Array.from({length: concurrency}, () => worker(delay, customPrompt, targetCompetitors));
+  const workers = Array.from({length: concurrency}, () => worker(delay, customPrompt, targetCompetitors, selectedPromptId));
   await Promise.all(workers);
 
   running = false;
@@ -237,7 +267,7 @@ async function startProcessing() {
   setProgress(`Finalizat: ${okCount} potriviri, ${noneCount} fara potrivire, ${errCount} erori.`, okCount > 0 ? 'success' : 'secondary');
 }
 
-async function worker(delay, customPrompt, targetCompetitors) {
+async function worker(delay, customPrompt, targetCompetitors, promptId) {
   while (true) {
     if (stopped) break;
     while (paused) await sleep(300);
@@ -252,7 +282,8 @@ async function worker(delay, customPrompt, targetCompetitors) {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           product_id: id,
-          prompt: customPrompt || null,
+          prompt_id: promptId || null,
+          prompt: (!promptId && customPrompt) ? customPrompt : null,
           target_competitors: targetCompetitors,
         }),
       });

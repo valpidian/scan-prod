@@ -1,0 +1,254 @@
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-3">
+      <input type="checkbox" class="form-check-input" id="check-all-page" title="Selecteaza pagina">
+      <span>Lista produse</span>
+      <span class="badge bg-secondary">{{ pagination.total }} total</span>
+      <span class="text-muted small">pagina {{ pagination.page }}/{{ pagination.pages }}</span>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-sm btn-soft btn-pill" href="{{ url_for('products.excluded_list') }}">
+        <i class="fas fa-ban me-1"></i> Excluderi
+      </a>
+      <a class="btn btn-sm btn-primary btn-pill" href="{{ url_for('import_export.import_view') }}">
+        <i class="fas fa-upload me-1"></i> Import
+      </a>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover mb-0" id="products-table">
+      <thead>
+        <tr>
+          <th style="width:36px;"></th>
+          {% set sortable = [
+            ('id',             'ID'),
+            ('cod_competitor', 'Competitor'),
+            ('sku',            'SKU'),
+            ('title',          'Titlu'),
+            ('pret',           'Pret'),
+            ('pret_preluat',   'Pret preluat'),
+            ('brand',          'Brand'),
+          ] %}
+          {% for col, label in sortable %}
+            {% set is_active = filters.sort == col %}
+            {% set next_dir  = 'desc' if (is_active and filters.direction == 'asc') else 'asc' %}
+            <th>
+              <a href="{{ url_for('products.list_view', sort=col, direction=next_dir, page=1,
+                                  per_page=per_page, competitor=filters.competitor, q=filters.q) }}"
+                 class="sort-header {% if is_active %}sort-active{% endif %}">
+                {{ label }}
+                {% if is_active %}
+                  <i class="fas fa-sort-{{ 'down' if filters.direction == 'desc' else 'up' }} ms-1"></i>
+                {% else %}
+                  <i class="fas fa-sort ms-1 sort-icon-idle"></i>
+                {% endif %}
+              </a>
+            </th>
+          {% endfor %}
+          <th><span class="sort-header" style="cursor:default;">Asociere</span></th>
+          <th><span class="sort-header" style="cursor:default;">Scor</span></th>
+          <th>Sursa pret</th>
+          <th style="width:120px;">Actiuni</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for product in products %}
+        {%- set _cnt = asociere_counts.get(product.id, 0) %}
+        <tr id="row-{{ product.id }}"
+            data-id="{{ product.id }}"
+            data-has-asociere="{{ '1' if _cnt > 0 else '0' }}">
+          <td>
+            <input type="checkbox" class="form-check-input row-check" value="{{ product.id }}">
+          </td>
+          <td><small class="text-muted">#{{ product.id }}</small></td>
+          <td>
+            <span class="association-pill">{{ product.cod_competitor }}</span>
+            {% if competitor_lookup.get(product.cod_competitor) %}
+              <small class="d-block text-muted mt-1">{{ competitor_lookup.get(product.cod_competitor) }}</small>
+            {% endif %}
+          </td>
+          <td><code class="small">{{ product.sku }}</code></td>
+          <td><span id="display-title-{{ product.id }}">{{ product.title }}</span></td>
+          <td><span id="display-pret-{{ product.id }}">{{ product.pret or '—' }}</span></td>
+          <td>
+            {% if product.pret_preluat %}
+              <span class="badge bg-info">{{ "%.2f"|format(product.pret_preluat) }} lei</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td><span id="display-brand-{{ product.id }}">{{ product.brand or '—' }}</span></td>
+          <td>
+            <span id="display-asociere-{{ product.id }}">
+              {% if _cnt > 0 %}
+                <span class="badge bg-success me-1 asociere-toggle"
+                      data-id="{{ product.id }}" style="cursor:pointer;" title="Click pentru detalii">
+                  {{ _cnt }} asociat(e)
+                  <i class="fas fa-chevron-down ms-1" style="font-size:0.65rem;"></i>
+                </span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </span>
+          </td>
+          <td id="score-cell-{{ product.id }}">
+            {%- set _si = score_map.get(product.id) %}
+            {% if _si %}
+              <a href="{{ url_for('match_scores.review') }}"
+                 class="badge score-pending"
+                 title="{{ _si.count }} potriviri in asteptare">
+                {{ "%.0f"|format(_si.score * 100) }}%
+                {% if _si.count > 1 %}<small class="ms-1 opacity-75">×{{ _si.count }}</small>{% endif %}
+              </a>
+            {% else %}
+              <span class="text-muted score-empty">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if product.pret_preluat_sursa %}
+              <span class="association-pill">{{ product.pret_preluat_sursa }}</span>
+              {% if competitor_lookup.get(product.pret_preluat_sursa) %}
+                <small class="d-block text-muted mt-1">{{ competitor_lookup.get(product.pret_preluat_sursa) }}</small>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="d-flex gap-1 flex-wrap">
+              <a href="{{ url_for('ai_association.associate', product_id=product.id) }}"
+                 class="action-btn action-btn-ai" title="Asociere AI">
+                <i class="fas fa-robot"></i>
+              </a>
+              <button type="button" class="action-btn action-btn-edit" title="Editeaza"
+                      onclick="toggleEdit({{ product.id }})">
+                <i class="fas fa-pen"></i>
+              </button>
+              <button type="button" class="action-btn action-btn-history" title="Istoric preturi"
+                      onclick="toggleHistory({{ product.id }})">
+                <i class="fas fa-chart-line"></i>
+              </button>
+              <button type="button" class="action-btn action-btn-ai-history" title="Istoric AI"
+                      onclick="toggleAiHistory({{ product.id }})">
+                <i class="fas fa-history"></i>
+              </button>
+              <button type="button" class="action-btn btn-score-row"
+                      title="Calculeaza potriviri (scoring)" data-id="{{ product.id }}">
+                <i class="fas fa-calculator"></i>
+              </button>
+              {% if product.url %}
+              <button type="button" class="action-btn btn-scrape-product"
+                      title="Actualizeaza pretul" data-id="{{ product.id }}">
+                <i class="fas fa-sync-alt"></i>
+              </button>
+              {% endif %}
+              <form method="post" action="{{ url_for('products.delete', product_id=product.id) }}"
+                    style="display:inline;"
+                    onsubmit="return confirm('Stergi produsul #{{ product.id }}?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="action-btn action-btn-delete" title="Sterge">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Panou editare inline -->
+        <tr id="edit-row-{{ product.id }}" class="edit-row" style="display:none;">
+          <td colspan="12" class="p-0">
+            <div class="edit-panel">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="edit-label">SKU</label>
+                  <input type="text" class="form-control form-control-sm"
+                         id="edit-sku-{{ product.id }}" value="{{ product.sku }}">
+                </div>
+                <div class="col-md-4">
+                  <label class="edit-label">Titlu</label>
+                  <input type="text" class="form-control form-control-sm"
+                         id="edit-title-{{ product.id }}" value="{{ product.title }}">
+                </div>
+                <div class="col-md-2">
+                  <label class="edit-label">Brand</label>
+                  <input type="text" class="form-control form-control-sm"
+                         id="edit-brand-{{ product.id }}" value="{{ product.brand or '' }}">
+                </div>
+                <div class="col-md-2">
+                  <label class="edit-label">Pret</label>
+                  <input type="number" step="0.01" class="form-control form-control-sm"
+                         id="edit-pret-{{ product.id }}" value="{{ product.pret or '' }}">
+                </div>
+                <div class="col-md-6">
+                  <label class="edit-label">Descriere</label>
+                  <input type="text" class="form-control form-control-sm"
+                         id="edit-descriere-{{ product.id }}" value="{{ product.descriere or '' }}">
+                </div>
+                <div class="col-md-3">
+                  <label class="edit-label">Alerta pret <span class="text-muted fw-normal">(notifica ≤ valoare)</span></label>
+                  <input type="number" step="0.01" class="form-control form-control-sm"
+                         id="edit-pret-alerta-{{ product.id }}"
+                         value="{{ product.pret_alerta or '' }}" placeholder="ex: 150.00">
+                </div>
+                <div class="col-md-12">
+                  <label class="edit-label">URL produs</label>
+                  <input type="url" class="form-control form-control-sm"
+                         id="edit-url-{{ product.id }}"
+                         value="{{ product.url or '' }}" placeholder="https://...">
+                </div>
+              </div>
+              <div class="d-flex gap-2 mt-3">
+                <button type="button" class="btn btn-primary btn-pill btn-sm"
+                        onclick="saveEdit({{ product.id }})">
+                  <i class="fas fa-save me-1"></i> Salveaza
+                </button>
+                <button type="button" class="btn btn-soft btn-pill btn-sm"
+                        onclick="toggleEdit({{ product.id }})">Anuleaza</button>
+                <span id="save-status-{{ product.id }}" class="ms-2 small align-self-center"></span>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Panou istoric preturi -->
+        <tr id="history-row-{{ product.id }}" style="display:none;">
+          <td colspan="12" class="p-0">
+            <div class="history-panel" id="history-panel-{{ product.id }}">
+              <div class="text-center py-2 text-muted small">
+                <i class="fas fa-spinner fa-spin"></i> Se incarca...
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Panou istoric AI -->
+        <tr id="ai-history-row-{{ product.id }}" style="display:none;">
+          <td colspan="12" class="p-0">
+            <div class="ai-history-panel" id="ai-history-panel-{{ product.id }}">
+              <div class="text-center py-2 text-muted small">
+                <i class="fas fa-spinner fa-spin"></i> Se incarca...
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Panou asocieri expandabil -->
+        <tr id="asocieri-row-{{ product.id }}" style="display:none;">
+          <td colspan="12" class="p-0">
+            <div class="asocieri-panel" id="asocieri-panel-{{ product.id }}">
+              <div class="text-center py-2 text-muted small">
+                <i class="fas fa-spinner fa-spin"></i> Se incarca...
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        {% else %}
+        <tr><td colspan="12" class="text-center text-muted py-4">Nu exista date.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,0 +1,666 @@
+<script>
+// ── Constante pagina ──────────────────────────────────────────────────────
+const COMPETITOR_LOOKUP = {{ competitor_lookup | tojson }};
+const CSRF_TOKEN        = {{ csrf_token() | tojson }};
+const SCORE_MAP         = {{ score_map | tojson }};
+
+function escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Renderer randuri JS (pentru infinite scroll) ──────────────────────────
+function renderProductRows(products) {
+  return products.map(p => {
+    const comp       = escHtml(COMPETITOR_LOOKUP[p.cod_competitor] || '');
+    const sursa      = COMPETITOR_LOOKUP[p.pret_preluat_sursa] || p.pret_preluat_sursa || '';
+    const pretPreluat = p.pret_preluat
+      ? `<span class="badge bg-info">${parseFloat(p.pret_preluat).toFixed(2)} lei</span>`
+      : '<span class="text-muted">—</span>';
+    const asocN    = p.asociere_count || 0;
+    const asocCell = asocN > 0
+      ? `<span class="badge bg-success me-1 asociere-toggle" data-id="${p.id}" style="cursor:pointer;" title="Click pentru detalii">
+           ${asocN} asociat(e) <i class="fas fa-chevron-down ms-1" style="font-size:.65rem;"></i>
+         </span>`
+      : '<span class="text-muted">—</span>';
+    const scoreInfo = SCORE_MAP[p.id] || (p.best_score != null ? {score: p.best_score, count: p.score_count || 1} : null);
+    const scoreCell = scoreInfo
+      ? `<a href="/match-scores/review" class="badge score-pending" title="${scoreInfo.count} potriviri in asteptare">${Math.round(scoreInfo.score * 100)}%${scoreInfo.count > 1 ? ` <small class="ms-1 opacity-75">×${scoreInfo.count}</small>` : ''}</a>`
+      : '<span class="text-muted score-empty">—</span>';
+    const pretSursa = p.pret_preluat_sursa
+      ? `<span class="association-pill">${escHtml(p.pret_preluat_sursa)}</span>${sursa ? `<small class="d-block text-muted mt-1">${escHtml(sursa)}</small>` : ''}`
+      : '<span class="text-muted">—</span>';
+    const scrapeBtn = p.url
+      ? `<button type="button" class="action-btn btn-scrape-product" title="Actualizeaza pretul" data-id="${p.id}"><i class="fas fa-sync-alt"></i></button>`
+      : '';
+    const editPanel = `
+      <div class="row g-3">
+        <div class="col-md-4"><label class="edit-label">SKU</label><input type="text" class="form-control form-control-sm" id="edit-sku-${p.id}" value="${escHtml(p.sku)}"></div>
+        <div class="col-md-4"><label class="edit-label">Titlu</label><input type="text" class="form-control form-control-sm" id="edit-title-${p.id}" value="${escHtml(p.title)}"></div>
+        <div class="col-md-2"><label class="edit-label">Brand</label><input type="text" class="form-control form-control-sm" id="edit-brand-${p.id}" value="${escHtml(p.brand||'')}"></div>
+        <div class="col-md-2"><label class="edit-label">Pret</label><input type="number" step="0.01" class="form-control form-control-sm" id="edit-pret-${p.id}" value="${p.pret||''}"></div>
+        <div class="col-md-6"><label class="edit-label">Descriere</label><input type="text" class="form-control form-control-sm" id="edit-descriere-${p.id}" value="${escHtml(p.descriere)}"></div>
+        <div class="col-md-3"><label class="edit-label">Alerta pret <span class="text-muted fw-normal">(notifica ≤ valoare)</span></label><input type="number" step="0.01" class="form-control form-control-sm" id="edit-pret-alerta-${p.id}" value="${p.pret_alerta||''}" placeholder="ex: 150.00"></div>
+        <div class="col-md-12"><label class="edit-label">URL produs</label><input type="url" class="form-control form-control-sm" id="edit-url-${p.id}" value="${escHtml(p.url||'')}" placeholder="https://..."></div>
+      </div>
+      <div class="d-flex gap-2 mt-3">
+        <button type="button" class="btn btn-primary btn-pill btn-sm" onclick="saveEdit(${p.id})"><i class="fas fa-save me-1"></i> Salveaza</button>
+        <button type="button" class="btn btn-soft btn-pill btn-sm" onclick="toggleEdit(${p.id})">Anuleaza</button>
+        <span id="save-status-${p.id}" class="ms-2 small align-self-center"></span>
+      </div>`;
+    return `
+      <tr id="row-${p.id}" data-id="${p.id}" data-has-asociere="${asocN > 0 ? '1' : '0'}">
+        <td><input type="checkbox" class="form-check-input row-check" value="${p.id}"></td>
+        <td><small class="text-muted">#${p.id}</small></td>
+        <td><span class="association-pill">${escHtml(p.cod_competitor)}</span>${comp ? `<small class="d-block text-muted mt-1">${comp}</small>` : ''}</td>
+        <td><code class="small">${escHtml(p.sku)}</code></td>
+        <td><span id="display-title-${p.id}">${escHtml(p.title)}</span></td>
+        <td><span id="display-pret-${p.id}">${p.pret || '—'}</span></td>
+        <td>${pretPreluat}</td>
+        <td><span id="display-brand-${p.id}">${escHtml(p.brand || '—')}</span></td>
+        <td><span id="display-asociere-${p.id}">${asocCell}</span></td>
+        <td id="score-cell-${p.id}">${scoreCell}</td>
+        <td>${pretSursa}</td>
+        <td>
+          <div class="d-flex gap-1 flex-wrap">
+            <a href="/ai/associate/${p.id}" class="action-btn action-btn-ai" title="Asociere AI"><i class="fas fa-robot"></i></a>
+            <button type="button" class="action-btn action-btn-edit" title="Editeaza" onclick="toggleEdit(${p.id})"><i class="fas fa-pen"></i></button>
+            <button type="button" class="action-btn action-btn-history" title="Istoric preturi" onclick="toggleHistory(${p.id})"><i class="fas fa-chart-line"></i></button>
+            <button type="button" class="action-btn action-btn-ai-history" title="Istoric AI" onclick="toggleAiHistory(${p.id})"><i class="fas fa-history"></i></button>
+            <button type="button" class="action-btn btn-score-row" title="Calculeaza potriviri (scoring)" data-id="${p.id}"><i class="fas fa-calculator"></i></button>
+            ${scrapeBtn}
+            <form method="post" action="/products/${p.id}/delete" style="display:inline;" onsubmit="return confirm('Stergi produsul #${p.id}?')">
+              <input type="hidden" name="csrf_token" value="${CSRF_TOKEN}">
+              <button type="submit" class="action-btn action-btn-delete" title="Sterge"><i class="fas fa-trash"></i></button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      <tr id="edit-row-${p.id}" class="edit-row" style="display:none;"><td colspan="12" class="p-0"><div class="edit-panel">${editPanel}</div></td></tr>
+      <tr id="history-row-${p.id}" style="display:none;"><td colspan="12" class="p-0"><div class="history-panel" id="history-panel-${p.id}"><div class="text-center py-2 text-muted small"><i class="fas fa-spinner fa-spin"></i> Se incarca...</div></div></td></tr>
+      <tr id="ai-history-row-${p.id}" style="display:none;"><td colspan="12" class="p-0"><div class="ai-history-panel" id="ai-history-panel-${p.id}"><div class="text-center py-2 text-muted small"><i class="fas fa-spinner fa-spin"></i> Se incarca...</div></div></td></tr>
+      <tr id="asocieri-row-${p.id}" style="display:none;"><td colspan="12" class="p-0"><div class="asocieri-panel" id="asocieri-panel-${p.id}"><div class="text-center py-2 text-muted small"><i class="fas fa-spinner fa-spin"></i> Se incarca...</div></div></td></tr>`;
+  }).join('');
+}
+
+// ── Debounce cautare ──────────────────────────────────────────────────────
+(function() {
+  const input = document.getElementById('input-q');
+  if (!input) return;
+  let _t = null;
+  input.addEventListener('input', function() {
+    clearTimeout(_t);
+    _t = setTimeout(() => input.closest('form').submit(), 300);
+  });
+})();
+
+// ── Selectie randuri ──────────────────────────────────────────────────────
+const selectedIds = new Set();
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulk-bar');
+  const cnt = document.getElementById('bulk-count');
+  if (selectedIds.size > 0) {
+    bar.style.display = '';
+    cnt.textContent = `${selectedIds.size} produse selectate`;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function setRowSelected(id, checked) {
+  const row = document.getElementById(`row-${id}`);
+  const cb  = row?.querySelector('.row-check');
+  if (checked) { selectedIds.add(id);    row?.classList.add('selected-row'); }
+  else         { selectedIds.delete(id); row?.classList.remove('selected-row'); }
+  if (cb) cb.checked = checked;
+  updateBulkBar();
+}
+
+document.querySelectorAll('.row-check').forEach(cb => {
+  cb.addEventListener('change', function() {
+    setRowSelected(parseInt(this.value), this.checked);
+  });
+});
+
+document.getElementById('check-all-page').addEventListener('change', function() {
+  document.querySelectorAll('.row-check').forEach(cb => {
+    setRowSelected(parseInt(cb.value), this.checked);
+  });
+});
+
+document.getElementById('btn-deselect-all').addEventListener('click', function() {
+  [...selectedIds].forEach(id => setRowSelected(id, false));
+  document.getElementById('check-all-page').checked = false;
+});
+
+function selectPage() {
+  document.querySelectorAll('.row-check').forEach(cb => setRowSelected(parseInt(cb.value), true));
+  document.getElementById('check-all-page').checked = true;
+}
+
+function selectWithoutAsociere() {
+  document.querySelectorAll('#products-table tbody tr[data-id]').forEach(tr => {
+    if (tr.dataset.hasAsociere === '0') setRowSelected(parseInt(tr.dataset.id), true);
+  });
+}
+
+// ── Procesare AI in masa ──────────────────────────────────────────────────
+document.getElementById('btn-ai-batch').addEventListener('click', function() {
+  if (!selectedIds.size) return;
+  window.location.href = `/products/ai-batch?${[...selectedIds].map(id => `ids=${id}`).join('&')}`;
+});
+
+// ── Helper: actualizeaza celula scor ─────────────────────────────────────
+function updateScoreCell(productId, pct) {
+  const cell = document.getElementById(`score-cell-${productId}`);
+  if (!cell) return;
+  if (pct != null) {
+    cell.innerHTML = `<a href="/match-scores/review" class="badge score-pending" title="Potriviri in asteptare">${pct}%</a>`;
+    SCORE_MAP[productId] = {score: pct / 100, count: 1};
+  }
+}
+
+// ── Calculeaza potriviri (scoring engine) ─────────────────────────────────
+document.getElementById('btn-score-match').addEventListener('click', function() {
+  if (!selectedIds.size) return;
+  document.getElementById('score-modal-count').textContent = selectedIds.size;
+  new bootstrap.Modal(document.getElementById('score-modal')).show();
+});
+
+async function runScoring() {
+  const btn      = document.getElementById('score-modal-run');
+  const minScore = parseFloat(document.getElementById('score-min-score').value) || 0.40;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Se calculeaza...';
+  document.getElementById('score-modal-result').innerHTML = '';
+  try {
+    const resp = await fetch('/match-scores/run', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({product_ids: [...selectedIds], min_score: minScore}),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      const bestScores = data.best_scores || {};
+      Object.entries(bestScores).forEach(([pid, pct]) => updateScoreCell(parseInt(pid), pct));
+      document.getElementById('score-modal-result').innerHTML = `
+        <div class="alert alert-success mt-3 mb-0">
+          <i class="fas fa-check-circle me-1"></i>
+          <strong>${data.saved}</strong> potriviri salvate pentru ${(data.results||[]).length} produse.
+          <a href="/match-scores/review" class="btn btn-sm btn-success btn-pill ms-2">
+            <i class="fas fa-arrow-right me-1"></i> Revizuire &amp; confirmare
+          </a>
+        </div>`;
+    } else {
+      document.getElementById('score-modal-result').innerHTML =
+        `<div class="alert alert-danger mt-3 mb-0">${data.error || 'Eroare'}</div>`;
+    }
+  } catch(err) {
+    document.getElementById('score-modal-result').innerHTML =
+      `<div class="alert alert-danger mt-3 mb-0">Eroare retea: ${err.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-calculator me-1"></i> Calculeaza';
+  }
+}
+
+// ── Stergere in grup ──────────────────────────────────────────────────────
+document.getElementById('btn-bulk-delete').addEventListener('click', async function() {
+  if (!selectedIds.size) return;
+  if (!confirm(`Stergi ${selectedIds.size} produse selectate? Actiunea este ireversibila.`)) return;
+  const btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Se sterge...';
+  try {
+    const resp = await fetch('/products/bulk-delete', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ids: [...selectedIds]}),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      [...selectedIds].forEach(id => {
+        ['row', 'edit-row', 'history-row', 'ai-history-row', 'asocieri-row'].forEach(prefix => {
+          document.getElementById(`${prefix}-${id}`)?.remove();
+        });
+      });
+      selectedIds.clear();
+      updateBulkBar();
+    }
+  } catch(err) {
+    alert('Eroare la stergere: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-trash me-1"></i> Sterge selectia';
+  }
+});
+
+// ── Asocieri expandabile ──────────────────────────────────────────────────
+document.addEventListener('click', async function(e) {
+  const toggle = e.target.closest('.asociere-toggle');
+  if (!toggle) return;
+  const id    = toggle.dataset.id;
+  const row   = document.getElementById(`asocieri-row-${id}`);
+  const panel = document.getElementById(`asocieri-panel-${id}`);
+  const icon  = toggle.querySelector('i');
+  if (row.style.display !== 'none') {
+    row.style.display = 'none';
+    icon.className = 'fas fa-chevron-down ms-1';
+    delete panel.dataset.loaded;
+    return;
+  }
+  row.style.display = 'table-row';
+  icon.className = 'fas fa-chevron-up ms-1';
+  if (panel.dataset.loaded) return;
+  try {
+    const resp = await fetch(`/products/${id}/asociate`);
+    const data = await resp.json();
+    const items = data.items;
+    const meta  = data.meta || {};
+    if (!items.length) {
+      panel.innerHTML = '<p class="text-muted small mb-0">Niciun produs asociat gasit.</p>';
+    } else {
+      panel.innerHTML = `
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr><th>ID</th><th>Competitor</th><th>SKU</th><th>Titlu</th><th>Brand</th>
+                <th class="text-end">Pret</th><th>URL</th><th>Pret preluat</th><th></th></tr>
+          </thead>
+          <tbody>
+            ${items.map(p => {
+              const isPretSursa = p.id === meta.pret_preluat_asociat_id;
+              const pretCell = isPretSursa
+                ? `<span class="badge bg-info"><i class="fas fa-check me-1"></i>${parseFloat(p.pret).toFixed(2)} lei</span>`
+                : (p.pret ? `<button type="button" class="btn btn-xs btn-soft btn-pill btn-pret-list"
+                    data-source="${id}" data-asociat="${p.id}" data-pret="${p.pret}">
+                    <i class="fas fa-tag"></i> Preia pret</button>` : '');
+              return `<tr id="asoc-row-${id}-${p.id}">
+                <td><code class="small">#${p.id}</code></td>
+                <td><small>${escHtml(p.display_name)}</small></td>
+                <td><code class="small">${escHtml(p.sku)}</code></td>
+                <td><small>${escHtml(p.title.substring(0,60))}${p.title.length>60?'...':''}</small></td>
+                <td><small>${escHtml(p.brand||'—')}</small></td>
+                <td class="text-end">${p.pret ? `<strong>${parseFloat(p.pret).toFixed(2)} lei</strong>` : '<span class="text-muted">—</span>'}</td>
+                <td>${p.url ? `<a href="${escHtml(p.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-soft btn-pill"><i class="fas fa-external-link-alt"></i></a>` : '<span class="text-muted">—</span>'}</td>
+                <td>${pretCell}</td>
+                <td><button type="button" class="btn btn-xs btn-soft btn-pill btn-exclude-asoc"
+                  data-source="${id}" data-excluded="${p.id}" title="Exclude asociere gresita">
+                  <i class="fas fa-ban text-danger"></i></button></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`;
+      panel.dataset.loaded = '1';
+    }
+  } catch(err) {
+    panel.innerHTML = `<p class="text-danger small mb-0">Eroare: ${escHtml(err.message)}</p>`;
+  }
+});
+
+// ── Preia pret din asociat ────────────────────────────────────────────────
+document.addEventListener('click', async function(e) {
+  const btn = e.target.closest('.btn-pret-list');
+  if (!btn) return;
+  const sourceId  = btn.dataset.source;
+  const asociatId = btn.dataset.asociat;
+  const pret      = btn.dataset.pret;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const resp = await fetch(`/products/${sourceId}/pret-preluat`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({asociat_id: asociatId}),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      btn.outerHTML = `<span class="badge bg-info">${parseFloat(pret).toFixed(2)} lei <i class="fas fa-check"></i></span>`;
+      const panel = document.getElementById(`asocieri-panel-${sourceId}`);
+      if (panel) delete panel.dataset.loaded;
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-tag"></i> Preia pret';
+    }
+  } catch { btn.disabled = false; btn.innerHTML = '<i class="fas fa-tag"></i> Preia pret'; }
+});
+
+// ── Excludere asociere ────────────────────────────────────────────────────
+document.addEventListener('click', async function(e) {
+  const btn = e.target.closest('.btn-exclude-asoc');
+  if (!btn) return;
+  const sourceId  = btn.dataset.source;
+  const excludedId = btn.dataset.excluded;
+  if (!confirm('Excludi aceasta asociere? Va fi salvata in registrul de excluderi.')) return;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const resp = await fetch(`/products/${sourceId}/exclude`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({excluded_id: excludedId}),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      const row = document.getElementById(`asoc-row-${sourceId}-${excludedId}`);
+      if (row) { row.style.opacity = '0.3'; row.style.transition = 'opacity .3s'; setTimeout(() => row.remove(), 350); }
+      const panel = document.getElementById(`asocieri-panel-${sourceId}`);
+      if (panel) delete panel.dataset.loaded;
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-ban text-danger"></i>';
+    }
+  } catch { btn.disabled = false; btn.innerHTML = '<i class="fas fa-ban text-danger"></i>'; }
+});
+
+// ── Editare inline ────────────────────────────────────────────────────────
+function toggleEdit(id) {
+  const editRow = document.getElementById(`edit-row-${id}`);
+  const editBtn = document.querySelector(`#row-${id} .action-btn-edit`);
+  const isOpen  = editRow.style.display !== 'none';
+  document.querySelectorAll('.edit-row').forEach(r => r.style.display = 'none');
+  document.querySelectorAll('.action-btn-edit').forEach(b => b.classList.remove('active'));
+  if (!isOpen) {
+    editRow.style.display = 'table-row';
+    editBtn?.classList.add('active');
+    document.getElementById(`edit-title-${id}`)?.focus();
+  }
+}
+
+async function saveEdit(id) {
+  const status  = document.getElementById(`save-status-${id}`);
+  const btn     = document.querySelector(`#edit-row-${id} .btn-primary`);
+  const payload = {
+    sku:         document.getElementById(`edit-sku-${id}`).value,
+    title:       document.getElementById(`edit-title-${id}`).value,
+    brand:       document.getElementById(`edit-brand-${id}`).value,
+    pret:        document.getElementById(`edit-pret-${id}`).value,
+    descriere:   document.getElementById(`edit-descriere-${id}`).value,
+    pret_alerta: document.getElementById(`edit-pret-alerta-${id}`).value,
+    url:         document.getElementById(`edit-url-${id}`).value,
+  };
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Se salveaza...';
+  try {
+    const resp = await fetch(`/products/${id}/edit`, {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      document.getElementById(`display-title-${id}`).textContent = payload.title;
+      document.getElementById(`display-brand-${id}`).textContent = payload.brand || '—';
+      document.getElementById(`display-pret-${id}`).textContent  = payload.pret  || '—';
+      status.innerHTML = '<span class="text-success"><i class="fas fa-check-circle"></i> Salvat</span>';
+      setTimeout(() => toggleEdit(id), 800);
+    }
+  } catch(err) {
+    status.innerHTML = `<span class="text-danger">Eroare retea</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save me-1"></i> Salveaza';
+  }
+}
+
+// ── Istoric AI ────────────────────────────────────────────────────────────
+function toggleAiHistory(id) {
+  const row   = document.getElementById(`ai-history-row-${id}`);
+  const panel = document.getElementById(`ai-history-panel-${id}`);
+  if (row.style.display !== 'none') { row.style.display = 'none'; return; }
+  row.style.display = 'table-row';
+  if (panel.dataset.loaded) return;
+  loadAiHistory(id, panel);
+}
+
+const AI_STATUS_LABELS = {
+  no_match:  { label: 'Negasit',   cls: 'bg-secondary' },
+  found:     { label: 'Gasit',     cls: 'bg-warning text-dark' },
+  confirmed: { label: 'Confirmat', cls: 'bg-success' },
+  rejected:  { label: 'Respins',   cls: 'bg-danger' },
+};
+
+async function loadAiHistory(id, panel) {
+  try {
+    const resp = await fetch(`/products/${id}/ai-history`);
+    const logs = await resp.json();
+    if (!logs.length) {
+      panel.innerHTML = '<p class="text-muted small mb-0 py-1">Nicio procesare AI inregistrata inca.</p>';
+      panel.dataset.loaded = '1';
+      return;
+    }
+    panel.innerHTML = `
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Data procesare</th><th>Competitor tinta</th><th>Prompt folosit</th><th>Status</th>
+            <th class="text-center">Confidence</th><th>Motiv AI</th><th>Produs gasit</th><th>Confirmat la</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${logs.map(log => {
+            const s    = AI_STATUS_LABELS[log.status] || { label: log.status, cls: 'bg-secondary' };
+            const conf = log.confidence != null ? `${Math.round(log.confidence * 100)}%` : '—';
+            const matched = log.matched_product_id
+              ? `<a href="/products/${log.matched_product_id}" class="small">#${log.matched_product_id}</a>`
+              : '<span class="text-muted">—</span>';
+            const promptBadge = log.prompt_name
+              ? `<span class="badge rounded-pill" style="background:rgba(111,66,193,0.12);color:#6f42c1;font-size:.7rem;">${escHtml(log.prompt_name)}</span>`
+              : '<span class="text-muted small">—</span>';
+            const reason = log.reason || '';
+            return `<tr>
+              <td><small class="text-muted">${log.processed_at}</small></td>
+              <td><small>${escHtml(log.competitor_target)}</small></td>
+              <td>${promptBadge}</td>
+              <td><span class="badge ${s.cls}">${s.label}</span></td>
+              <td class="text-center"><small>${conf}</small></td>
+              <td><small class="text-muted" title="${escHtml(reason)}">${escHtml(reason.length > 60 ? reason.substring(0,60)+'…' : reason || '—')}</small></td>
+              <td>${matched}</td>
+              <td><small class="text-muted">${log.confirmed_at || '—'}</small></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+    panel.dataset.loaded = '1';
+  } catch(err) {
+    panel.innerHTML = `<p class="text-danger small mb-0">Eroare: ${escHtml(err.message)}</p>`;
+  }
+}
+
+// ── Istoric preturi ───────────────────────────────────────────────────────
+const historyCharts = {};
+
+function toggleHistory(id) {
+  const row   = document.getElementById(`history-row-${id}`);
+  const panel = document.getElementById(`history-panel-${id}`);
+  if (row.style.display !== 'none') { row.style.display = 'none'; return; }
+  row.style.display = 'table-row';
+  if (panel.dataset.loaded) return;
+  loadHistory(id, panel);
+}
+
+async function loadHistory(id, panel) {
+  try {
+    const resp    = await fetch(`/products/${id}/price-history`);
+    const history = await resp.json();
+    if (!history.length) {
+      panel.innerHTML = '<p class="text-muted small mb-0 py-1">Niciun istoric de pret inregistrat inca.</p>';
+      return;
+    }
+    const colors   = { import: '#0d6efd', scraper: '#fd7e14', manual: '#198754' };
+    const canvasId = `chart-${id}`;
+    panel.innerHTML = `<div style="max-height:220px;"><canvas id="${canvasId}"></canvas></div>`;
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    if (historyCharts[id]) historyCharts[id].destroy();
+    historyCharts[id] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels:   history.map(h => h.recorded_at),
+        datasets: [{
+          label: 'Pret (lei)',
+          data:  history.map(h => h.pret),
+          borderColor:     '#0d6efd',
+          backgroundColor: 'rgba(13,110,253,0.08)',
+          tension: 0.3, fill: true, pointRadius: 5,
+          pointBackgroundColor: history.map(h => colors[h.sursa] || '#6c757d'),
+          pointBorderColor: '#fff', pointBorderWidth: 2,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => `${ctx.parsed.y.toFixed(2)} lei (${history[ctx.dataIndex].sursa})` } },
+        },
+        scales: {
+          y: { beginAtZero: false, ticks: { callback: v => v + ' lei' } },
+          x: { ticks: { maxRotation: 30, font: { size: 10 } } },
+        },
+      },
+    });
+    panel.dataset.loaded = '1';
+  } catch(err) {
+    panel.innerHTML = `<p class="text-danger small mb-0">Eroare: ${escHtml(err.message)}</p>`;
+  }
+}
+
+// ── Scrape produs individual ──────────────────────────────────────────────
+document.addEventListener('click', async function(e) {
+  const btn = e.target.closest('.btn-scrape-product');
+  if (!btn) return;
+  const id = btn.dataset.id;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const resp = await fetch(`/products/${id}/scrape`, {method: 'POST'});
+    const data = await resp.json();
+    if (data.ok) {
+      if (data.changed) {
+        document.getElementById(`display-pret-${id}`).textContent = parseFloat(data.pret).toFixed(2);
+        const panel = document.getElementById(`history-panel-${id}`);
+        if (panel) delete panel.dataset.loaded;
+        btn.innerHTML = '<i class="fas fa-check text-success"></i>';
+      } else {
+        btn.innerHTML = '<i class="fas fa-check text-muted"></i>';
+      }
+    } else {
+      btn.title    = data.error || 'Eroare scraping';
+      btn.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i>';
+    }
+  } catch {
+    btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+  } finally {
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync-alt"></i>'; }, 2500);
+  }
+});
+
+// ── Calculeaza potriviri per rand ─────────────────────────────────────────
+document.addEventListener('click', async function(e) {
+  const btn = e.target.closest('.btn-score-row');
+  if (!btn) return;
+  const id = parseInt(btn.dataset.id);
+
+  // Daca e selectat impreuna cu altele, deschide modalul bulk
+  if (selectedIds.size > 1 && selectedIds.has(id)) {
+    document.getElementById('score-modal-count').textContent = selectedIds.size;
+    new bootstrap.Modal(document.getElementById('score-modal')).show();
+    return;
+  }
+
+  // Altfel, ruleaza direct pentru un singur produs
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const resp = await fetch('/match-scores/run', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({product_ids: [id], min_score: 0.40}),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      const n = data.saved || 0;
+      const bestScores = data.best_scores || {};
+      if (bestScores[String(id)] != null) updateScoreCell(id, bestScores[String(id)]);
+      btn.innerHTML = `<i class="fas fa-check text-success"></i>`;
+      btn.title = n > 0
+        ? `${n} potriviri gasite — click pentru revizuire`
+        : 'Nicio potrivire gasita';
+      if (n > 0) {
+        btn.classList.add('btn-score-row--found');
+        btn.onclick = () => window.open('/match-scores/review', '_blank');
+      }
+    } else {
+      btn.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i>';
+      btn.title = data.error || 'Eroare';
+      setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-calculator"></i>'; btn.title = 'Calculeaza potriviri'; btn.onclick = null; }, 3000);
+    }
+  } catch(err) {
+    btn.innerHTML = '<i class="fas fa-exclamation-triangle text-danger"></i>';
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-calculator"></i>'; btn.title = 'Calculeaza potriviri'; btn.onclick = null; }, 3000);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ── Infinite scroll ───────────────────────────────────────────────────────
+(function() {
+  const ISINIT_HAS_NEXT = {{ 'true' if pagination.has_next else 'false' }};
+  const LOAD_ALL        = {{ 'true' if load_all else 'false' }};
+  if (!ISINIT_HAS_NEXT) return;
+
+  let iscrPage    = {{ pagination.page }};
+  let iscrLoading = false;
+  let iscrDone    = false;
+
+  const tbody    = document.querySelector('#products-table tbody');
+  const sentinel = document.getElementById('scroll-sentinel');
+  const loader   = document.getElementById('scroll-loader');
+  const paginNav = document.getElementById('pagination-nav');
+  if (paginNav) paginNav.style.display = 'none';
+
+  async function loadNextPage() {
+    if (iscrLoading || iscrDone) return;
+    iscrLoading = true;
+    loader.style.display = '';
+    try {
+      iscrPage++;
+      const url = new URL(window.location.href);
+      url.searchParams.set('page',     iscrPage);
+      url.searchParams.set('format',   'json');
+      url.searchParams.set('per_page', '50');
+      const resp = await fetch(url.toString());
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      tbody.insertAdjacentHTML('beforeend', renderProductRows(data.products));
+      data.products.forEach(p => {
+        document.getElementById(`row-${p.id}`)?.querySelector('.row-check')
+          ?.addEventListener('change', function() { setRowSelected(parseInt(this.value), this.checked); });
+      });
+      if (!data.has_next) {
+        iscrDone = true;
+        loader.innerHTML = `<small class="text-muted">Toate ${data.total} produsele au fost incarcate.</small>`;
+      } else {
+        loader.style.display = 'none';
+      }
+    } catch(err) {
+      iscrPage--;
+      loader.style.display = 'none';
+      console.error('Infinite scroll:', err);
+    } finally {
+      iscrLoading = false;
+    }
+  }
+
+  if (LOAD_ALL) {
+    loader.style.display = '';
+    loader.innerHTML = `<div class="spinner-border spinner-border-sm text-primary me-2"></div><small class="text-muted">Se incarca toate produsele...</small>`;
+    (async function autoLoad() {
+      while (!iscrDone) { await loadNextPage(); if (!iscrDone) await new Promise(r => setTimeout(r, 80)); }
+    })();
+  } else {
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting) loadNextPage(); },
+      { rootMargin: '300px' }
+    );
+    observer.observe(sentinel);
+  }
+})();
+</script>

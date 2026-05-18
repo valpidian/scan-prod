@@ -724,7 +724,11 @@ function cleanMediaUrls(btn) {
 // ── AUTO-DISCOVER ──────────────────────────────────────────────────────────
 const FIELD_MAP = { title:'sel_title', pret:'sel_pret', sku:'sel_sku', brand:'sel_brand', descriere:'sel_descriere', categorie:'sel_categorie' };
 const FIELD_LABEL = { title:'Titlu', pret:'Pret', sku:'SKU', brand:'Brand', descriere:'Descriere', categorie:'Categorie' };
-const SRC_BADGE = { structured:'<span class="badge bg-success ms-1" style="font-size:.58rem;">JSON-LD</span>', css:'<span class="badge bg-info text-dark ms-1" style="font-size:.58rem;">CSS</span>' };
+const SRC_BADGE = {
+  metadata:'<span class="badge bg-warning text-dark ms-1" style="font-size:.58rem;">META</span>',
+  structured:'<span class="badge bg-success ms-1" style="font-size:.58rem;">JSON-LD</span>',
+  css:'<span class="badge bg-info text-dark ms-1" style="font-size:.58rem;">CSS</span>'
+};
 window._discovered = {};
 
 function discoverSelectors() {
@@ -750,6 +754,87 @@ function discoverSelectors() {
     div.classList.remove('d-none');
     if (data.error) { div.innerHTML = `<div class="alert alert-danger py-2 small">${data.error}</div>`; return; }
 
+    const dbg = data.debug || {};
+    const redirectRows = (dbg.redirects || []).map(h => `
+      <tr>
+        <td>${h.status_code ?? '—'}</td>
+        <td><code>${h.url || '—'}</code></td>
+        <td><code>${h.location || '—'}</code></td>
+      </tr>`).join('');
+    const debugBox = `
+      <div class="alert alert-secondary py-2 small mb-3">
+        <div class="fw-semibold mb-1">Debug server</div>
+        <div><strong>Cerut:</strong> <code>${dbg.requested_url || url}</code></div>
+        <div><strong>Final:</strong> <code>${dbg.final_url || '—'}</code></div>
+        <div><strong>Status:</strong> <code>${dbg.status_code ?? '—'}</code></div>
+        <div><strong>Content-Type:</strong> <code>${dbg.content_type || '—'}</code></div>
+        ${redirectRows ? `
+          <div class="mt-2"><strong>Redirect-uri:</strong></div>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead><tr><th>Status</th><th>URL</th><th>Location</th></tr></thead>
+              <tbody>${redirectRows}</tbody>
+            </table>
+          </div>` : ''}
+        ${(dbg.meta_tags || []).length ? `
+          <details class="mt-2">
+            <summary class="fw-semibold">Meta tags brute (${dbg.meta_tags.length})</summary>
+            <div class="table-responsive mt-2">
+              <table class="table table-sm mb-0">
+                <thead><tr><th>property</th><th>name</th><th>content</th><th>charset</th><th>http-equiv</th></tr></thead>
+                <tbody>
+                  ${(dbg.meta_tags || []).map(m => `
+                    <tr>
+                      <td><code>${escHtml(m.property || 'â€”')}</code></td>
+                      <td><code>${escHtml(m.name || 'â€”')}</code></td>
+                      <td><small>${escHtml(m.content || 'â€”')}</small></td>
+                      <td><code>${escHtml(m.charset || 'â€”')}</code></td>
+                      <td><code>${escHtml(m['http-equiv'] || 'â€”')}</code></td>
+                    </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </details>` : ''}
+      </div>`;
+
+    const metaSections = [];
+    for (const [field, inputId] of Object.entries(FIELD_MAP)) {
+      const res = data[field];
+      const items = res?.metadata_debug || [];
+      if (!items.length) continue;
+      const rows = items.map(m => `
+        <tr class="${m.accepted ? 'table-success' : 'table-danger'}">
+          <td><code>${escHtml(m.property || '—')}</code></td>
+          <td><code>${escHtml(m.selector || '—')}</code></td>
+          <td>${m.accepted ? '<span class="badge bg-success">ok</span>' : '<span class="badge bg-danger">no</span>'}</td>
+          <td><small>${escHtml(m.reason || '—')}</small></td>
+          <td><small>${escHtml(m.content || '—')}</small></td>
+        </tr>`).join('');
+      metaSections.push(`
+        <details class="mb-2">
+          <summary class="small fw-semibold">${FIELD_LABEL[field]} metadata (${items.length})</summary>
+          <div class="table-responsive mt-2">
+            <table class="table table-sm mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Property</th>
+                  <th>Selector</th>
+                  <th>Stare</th>
+                  <th>Motiv</th>
+                  <th>Content</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </details>`);
+    }
+    const metadataBox = `
+      <details class="alert alert-info py-2 small mb-3">
+        <summary class="fw-semibold mb-2">Metadata debug</summary>
+        ${metaSections.length ? metaSections.join('') : '<div class="text-muted">Nu exista inca intrari metadata pentru acest URL.</div>'}
+      </details>`;
+
     window._discovered = {};
     for (const [field, inputId] of Object.entries(FIELD_MAP)) {
       const res = data[field];
@@ -767,11 +852,19 @@ function discoverSelectors() {
       let btns = '<span class="text-muted" style="font-size:.72rem;">Negasit</span>';
       if (res?.candidates?.length) {
         btns = res.candidates.map(c => {
+          const preview = (c.preview || '').substring(0,100).replace(/"/g,'&quot;');
+          if (!c.selector) {
+            // Candidat din date structurate (JSON-LD/microdata) — fara selector CSS
+            const srcLabel = c.source === 'structured' ? 'JSON-LD' : (c.source || 'meta');
+            return `<span class="badge rounded-pill me-1 mb-1"
+              style="font-size:.68rem;background:rgba(25,135,84,0.12);color:#146c43;border:1px solid rgba(25,135,84,0.3);"
+              title="${preview}">${srcLabel}: ${(c.preview||'').substring(0,40)}</span>`;
+          }
           const sel = c.selector.replace(/\\/g,'\\\\').replace(/`/g,'\\`');
           return `<button type="button" class="btn btn-sm btn-outline-primary btn-pill me-1 mb-1"
             style="font-size:.68rem;font-family:monospace;padding:1px 7px;"
             onclick="applySelector('${inputId}',\`${sel}\`,this)"
-            title="${c.preview.substring(0,100).replace(/"/g,'&quot;')}">${c.selector}</button>`;
+            title="${preview}">${c.selector}</button>`;
         }).join('');
       }
       rows += `<tr>
@@ -782,9 +875,14 @@ function discoverSelectors() {
     }
 
     div.innerHTML = `
-      <div class="border rounded bg-light mb-0">
+      ${debugBox}
+      ${metadataBox}
+      <details class="border rounded bg-light mb-0" open>
+        <summary class="px-3 py-2 border-bottom fw-semibold" style="cursor:pointer;">
+          Selectori descoperiti
+        </summary>
         <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
-          <span class="small fw-semibold">Selectori descoperiti</span>
+          <span class="small text-muted">Sectiune colapsabila</span>
           <button type="button" class="btn btn-success btn-sm btn-pill" onclick="applyAllSelectors(this)">
             <i class="fas fa-magic me-1"></i>Populeaza automat toate campurile
           </button>
@@ -797,7 +895,7 @@ function discoverSelectors() {
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
-      </div>`;
+      </details>`;
   })
   .catch(e => {
     btn.disabled = false;
@@ -827,7 +925,12 @@ function applyAllSelectors(btn) {
 
 function applySelector(inputId, selector, btn) {
   const input = document.getElementById(inputId);
-  if (input) { input.value = selector; input.classList.add('border-success'); setTimeout(() => input.classList.remove('border-success'), 1500); }
+  if (input) {
+    input.value = selector;
+    input.classList.add('border-success');
+    setTimeout(() => input.classList.remove('border-success'), 1500);
+    syncSelectorsToAntiblock();
+  }
   btn.closest('.d-flex')?.querySelectorAll('button').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-outline-primary'); });
   btn.classList.remove('btn-outline-primary'); btn.classList.add('btn-primary');
 }
@@ -866,6 +969,12 @@ function syncSelectorsToAntiblock() {
   const abFilter  = document.getElementById('ab-url_filter');
   if (urlFilter && abFilter) abFilter.value = urlFilter.value;
 }
+
+document.querySelectorAll('.selector-input').forEach(el => {
+  el.addEventListener('input', syncSelectorsToAntiblock);
+  el.addEventListener('change', syncSelectorsToAntiblock);
+});
+syncSelectorsToAntiblock();
 
 // ── SCRAPING JOB: start ────────────────────────────────────────────────────
 function startJob() {

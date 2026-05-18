@@ -339,7 +339,8 @@ def clean_media_urls(code):
 @bp.route("/<code>/test", methods=["POST"])
 @csrf.exempt
 def test_url(code):
-    from app.services.web_scraping_service import test_scrape_url
+    from app.services.web_scraping_service import test_scrape_url, make_session
+    config = ScrapingConfig.query.filter_by(competitor_code=code).first()
     data = request.get_json()
     url = (data.get("url") or "").strip()
     selectors = {
@@ -352,7 +353,10 @@ def test_url(code):
     }
     if not url:
         return jsonify({"error": "URL-ul este necesar"}), 400
-    return jsonify(test_scrape_url(url, selectors))
+    user_agent = config.user_agent if config else None
+    block_res = config.block_resources if config and config.block_resources is not None else True
+    session = make_session(user_agent=user_agent, base_url=url, block_resources=block_res)
+    return jsonify(test_scrape_url(url, selectors, session=session, user_agent=user_agent))
 
 
 # ── Auto-discover selectori ────────────────────────────────────────────────
@@ -360,12 +364,16 @@ def test_url(code):
 @bp.route("/<code>/discover", methods=["POST"])
 @csrf.exempt
 def discover_selectors(code):
-    from app.services.web_scraping_service import auto_discover_selectors
+    from app.services.web_scraping_service import auto_discover_selectors, make_session
+    config = ScrapingConfig.query.filter_by(competitor_code=code).first()
     data = request.get_json()
     url = (data.get("url") or "").strip()
     if not url:
         return jsonify({"error": "URL necesar"}), 400
-    return jsonify(auto_discover_selectors(url))
+    user_agent = config.user_agent if config else None
+    block_res = config.block_resources if config and config.block_resources is not None else True
+    session = make_session(user_agent=user_agent, base_url=url, block_resources=block_res)
+    return jsonify(auto_discover_selectors(url, user_agent=user_agent, session=session))
 
 
 # ── Logs ───────────────────────────────────────────────────────────────────
