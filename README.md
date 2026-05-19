@@ -316,7 +316,7 @@ pip install -r requirements.txt
 copy .env.example .env
 # Editează .env cu setările tale
 
-python migrate_db.py     # inițializează schema DB
+python tools/migrations/migrate_db.py     # inițializează schema DB
 python run.py            # pornește serverul
 ```
 
@@ -334,7 +334,7 @@ pip install -r requirements.txt
 cp .env.example .env
 nano .env
 
-python migrate_db.py
+python tools/migrations/migrate_db.py
 python run.py
 ```
 
@@ -834,3 +834,10 @@ Cauza: același produs importat de două ori cu SKU-uri ușor diferite (ex: `ABC
 ## Licență
 
 Uz intern. Nu redistribui fără acord.
+
+## Structura operationala (actualizata)
+
+- ops/ contine scripturile operationale (manager server, launchere si utilitare de start).
+- tools/migrations/ contine scripturile de migrare baza de date.
+- tools/debug/ contine scripturi si output de debug.
+- tools/tests_manual/ contine testele standalone rulate manual.
